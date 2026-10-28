@@ -1,0 +1,11 @@
+flowchart TD
+    User([User]) -->|Speech| ASR[ASR]
+    ASR --> LLM_Interp["LLM<br/>(Interpreter)"]
+    LLM_Interp -->|Structured semantics| DialogueManager["Dialogue Manager"]
+
+    DialogueManager <--> Recipe["API<br/>(Recipe)"]
+    DialogueManager <--> RAG["RAG<br/>(Culinary Knowledge)"]
+    DialogueManager --> LLM_Gen["LLM<br/>(Response Generation)"]
+
+    LLM_Gen --> TTS[TTS]
+    TTS -->|Speech| User
