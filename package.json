@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "preview": "vite preview",
-    "rag:cli": "tsx scripts/rag-cli.ts"
+    "rag:cli": "tsx scripts/rag-cli.ts",
+    "rag:fetch": "tsx scripts/fetch-wikibooks.ts"
   },
   "engines": {
     "node": ">=24.0.0"
