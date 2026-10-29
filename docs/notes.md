@@ -18,6 +18,11 @@ This document records key design decisions, tradeoffs, and domain-specific consi
 - [3. Testing Framework & Directory Convention](#3-testing-framework--directory-convention)
   - [Decision: Vitest for Unit Testing](#decision-vitest-for-unit-testing)
   - [Directory Convention: Feature-Level `__tests__/`](#directory-convention-feature-level-__tests__)
+- [4. Culinary RAG Scope & Ingestion Strategy](#4-culinary-rag-scope--ingestion-strategy)
+  - [Decision: Scope Limited to Cooking Techniques & Ingredient Substitutions](#decision-scope-limited-to-cooking-techniques--ingredient-substitutions)
+  - [Decision: Curated High-Signal Corpus vs. Web Scraping (YAGNI)](#decision-curated-high-signal-corpus-vs-web-scraping-yagni)
+  - [Single Vector Collection with Semantic Metadata](#single-vector-collection-with-semantic-metadata)
+  - [Section-Aware, Heading-Preserving Chunking Strategy](#section-aware-heading-preserving-chunking-strategy)
 
 ---
 
@@ -78,4 +83,48 @@ For example, in *Spicy Arrabiata Penne*, paragraph 2 contains:
 ### Directory Convention: Feature-Level `__tests__/`
 * Tests are organized under `src/<feature>/__tests__/*.test.ts` (e.g. `src/recipes/__tests__/normalizer.test.ts`).
 * Keeps the project root and production directories clean while allowing mock data and test fixtures to live right alongside the feature code they test.
+
+---
+
+## 4. Culinary RAG Scope & Ingestion Strategy
+
+### Decision: Scope Limited to Cooking Techniques & Ingredient Substitutions
+* **Kitchen Reality**: During active cooking, home cooks almost exclusively ask two types of domain questions:
+  1. **Substitutions**: *"I don't have heavy cream, can I use milk?"*, *"Can I swap pecorino for parmesan?"*
+  2. **Techniques & Troubleshooting**: *"What does sauté mean?"*, *"Why isn't this browning?"*, *"How hot should the skillet be?"*
+* **Dialogue Simplicity**: Constraining the knowledge domain simplifies semantic parsing and dialogue intent routing in XState to two primary dialogue acts:
+  * `INQUIRE_SUBSTITUTION` (entities: `originalIngredient`, `candidateSubstitute`)
+  * `INQUIRE_TECHNIQUE` (entities: `action`, `symptom`)
+* Avoids bloating vector retrieval with unrelated food science, broad culinary history, or conflicting recipes.
+
+### Decision: Curated High-Signal Corpus vs. Web Scraping (YAGNI)
+* **The Problem with Scraping Wikibooks**:
+  * Non-recipe culinary reference content on Wikibooks is small (~10–15 relevant topic pages).
+  * MediaWiki pages contain noisy HTML/templates, edit tags (`[edit]`), navigation banners, and inconsistent tables.
+  * Writing, debugging, and maintaining scraping/cleanup pipelines is unnecessary engineering overhead for a fixed knowledge domain.
+* **Curated Markdown Corpus**:
+  * Documents are authored in clean, modular Markdown under `data/knowledge/` (`substitutions/` and `techniques/`).
+  * Structured explicitly into heading-anchored, concise sections designed to be chunked into atomic 100–250 word advisory blocks.
+  * Guarantees factual accuracy, high embedding signal-to-noise ratio, and answers concise enough for spoken dialogue (<25 words per utterance).
+
+### Single Vector Collection with Semantic Metadata
+* Rather than managing multiple collections in Qdrant, all culinary knowledge lives in a single collection (`culinary_knowledge`).
+* Each point is tagged with payload metadata (`category: "substitutions" | "techniques"`, `topic`, `sourceFile`).
+* Enables unified vector search with optional metadata filtering when dialogue state provides explicit intent context.
+
+### Section-Aware, Heading-Preserving Chunking Strategy
+* **The Problem with Naive Character Splitting**:
+  * Blind character slicing (e.g. fixed 500-char windows) cuts sentences in half, separates advice from caveats, and detaches headings from their body text (leaving empty headers like `### Salt`).
+  * In a spoken dialogue copilot, severed advice produces incomplete LLM responses, confusing cooks who cannot visually read a screen.
+* **Heading-Preserving Splits (`##` and `###`)**:
+  * Cuts strictly along Markdown H2 (`##`) and H3 (`###`) boundaries to mirror natural topic divisions across varied Wikibooks authoring styles.
+  * Stamps the document title context (e.g. `[Sautéing]`, `[Al Dente]`) at the start of each chunk so semantic vectors retain topic identity even when the body text uses generic language.
+  * Eliminates orphan headings (<15 chars of text) by keeping headers glued directly to their explanation paragraphs.
+* **Noise & Keyword Trap Filtering**:
+  * Strips breadcrumbs (`Cookbook | Recipes | ...`) and HTML metadata comments prior to chunking.
+  * Filters out trailing recipe lists (`## Recipes that call for...`), cross-references (`## See also`), and bibliographies to prevent false-positive keyword matches during vector search.
+* **Sentence-Boundary Priority**:
+  * Sections exceeding 900 characters fall back to recursive splitting with separator priority `["\n\n\n", "\n\n", ". ", "\n", " "]`, enforcing cuts between full sentences rather than arbitrary mid-sentence line breaks.
+
+
 
