@@ -1,12 +1,7 @@
-import { MAX_MEALDB_INGREDIENTS } from "./constants";
-import {
-  MealDBMeal,
-  NormalizedRecipe,
-  RecipeIngredient,
-  RecipeStep,
-} from "./types";
+import { MAX_MEALDB_INGREDIENTS } from './constants';
+import type { MealDBMeal, NormalizedRecipe, RecipeIngredient, RecipeStep } from './types';
 
-const sentenceSegmenter = new Intl.Segmenter("en", { granularity: "sentence" });
+const sentenceSegmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
 
 /**
  * Extracts structured ingredients from TheMealDB's 20 flat slots.
@@ -17,7 +12,7 @@ export function extractIngredients(meal: MealDBMeal): RecipeIngredient[] {
   for (let i = 1; i <= MAX_MEALDB_INGREDIENTS; i++) {
     const name = meal[`strIngredient${i}`]?.trim();
     if (name) {
-      const measure = meal[`strMeasure${i}`]?.trim() ?? "";
+      const measure = meal[`strMeasure${i}`]?.trim() ?? '';
       ingredients.push({
         name,
         measure,
@@ -56,11 +51,11 @@ export function extractSteps(instructions: string): RecipeStep[] {
  */
 export function normalizeMealDBRecipe(meal: MealDBMeal): NormalizedRecipe {
   const ingredients = extractIngredients(meal);
-  const steps = extractSteps(meal.strInstructions || "");
+  const steps = extractSteps(meal.strInstructions || '');
 
   const tags = meal.strTags
     ? meal.strTags
-        .split(",")
+        .split(',')
         .map((t) => t.trim())
         .filter(Boolean)
     : [];
@@ -82,7 +77,6 @@ export function normalizeMealDBRecipe(meal: MealDBMeal): NormalizedRecipe {
     youtubeUrl: meal.strYoutube ?? null,
     ingredients,
     steps,
-    totalEstimatedMinutes:
-      totalEstimatedMinutes > 0 ? totalEstimatedMinutes : undefined,
+    totalEstimatedMinutes: totalEstimatedMinutes > 0 ? totalEstimatedMinutes : undefined,
   };
 }

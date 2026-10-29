@@ -1,7 +1,7 @@
-import "./style.css";
-import { setupButton } from "./dm.ts";
+import './style.css';
+import { setupButton } from './dm.ts';
 
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
     <div class="card">
       <button id="counter" type="button"></button>
@@ -9,4 +9,4 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   </div>
 `;
 
-setupButton(document.querySelector<HTMLButtonElement>("#counter")!);
+setupButton(document.querySelector<HTMLButtonElement>('#counter')!);

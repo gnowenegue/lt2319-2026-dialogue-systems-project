@@ -1,11 +1,11 @@
-import { speechstate } from "speechstate";
-import { assign, createActor, fromPromise, setup } from "xstate";
+import { speechstate } from 'speechstate';
+import { assign, createActor, fromPromise, setup } from 'xstate';
 
-import { settings } from "./configs";
-import { NO_INPUT_THRESHOLD, ROLES } from "./constants";
-import prompts from "./prompts";
-import { getChatCompletions, queryQdrant } from "./services";
-import { DMContext, DMEvents, Message } from "./types";
+import { settings } from './configs';
+import { NO_INPUT_THRESHOLD, ROLES } from './constants';
+import prompts from './prompts';
+import { getChatCompletions, queryQdrant } from './services';
+import type { DMContext, DMEvents, Message } from './types';
 
 /** backup: Azure access via FLoV proxy
 const azureProxyCredentials = {
@@ -19,22 +19,20 @@ const getChatCompletionsLogic = fromPromise(
     try {
       return await getChatCompletions(input.messages);
     } catch (error) {
-      console.error("LLM error:", error);
+      console.error('LLM error:', error);
       throw error;
     }
   },
 );
 
-const queryRagLogic = fromPromise(
-  async ({ input }: { input: { query: string } }) => {
-    try {
-      return await queryQdrant("ServiceAndSupport", input.query);
-    } catch (error) {
-      console.error("RAG error:", error);
-      throw error;
-    }
-  },
-);
+const queryRagLogic = fromPromise(async ({ input }: { input: { query: string } }) => {
+  try {
+    return await queryQdrant('ServiceAndSupport', input.query);
+  } catch (error) {
+    console.error('RAG error:', error);
+    throw error;
+  }
+});
 
 const dmMachine = setup({
   types: {
@@ -44,16 +42,16 @@ const dmMachine = setup({
   },
   actions: {
     /** define your actions here */
-    "spst.speak": ({ context }, params: { utterance: string }) =>
+    'spst.speak': ({ context }, params: { utterance: string }) =>
       context.spstRef.send({
-        type: "SPEAK",
+        type: 'SPEAK',
         value: {
           utterance: params.utterance,
         },
       }),
-    "spst.listen": ({ context }) =>
+    'spst.listen': ({ context }) =>
       context.spstRef.send({
-        type: "LISTEN",
+        type: 'LISTEN',
       }),
   },
   actors: {
@@ -72,23 +70,23 @@ const dmMachine = setup({
     ],
     noInputCount: 0,
   }),
-  id: "DM",
-  initial: "Prepare",
+  id: 'DM',
+  initial: 'Prepare',
   states: {
     Prepare: {
-      entry: ({ context }) => context.spstRef.send({ type: "PREPARE" }),
-      on: { ASRTTS_READY: "WaitToStart" },
+      entry: ({ context }) => context.spstRef.send({ type: 'PREPARE' }),
+      on: { ASRTTS_READY: 'WaitToStart' },
     },
     WaitToStart: {
-      on: { CLICK: "GenerateLLMResponse" },
+      on: { CLICK: 'GenerateLLMResponse' },
     },
     GenerateLLMResponse: {
       invoke: {
-        id: "getChatCompletionsActor",
-        src: "getChatCompletionsActor",
+        id: 'getChatCompletionsActor',
+        src: 'getChatCompletionsActor',
         input: ({ context: { messages } }) => ({ messages }),
         onDone: {
-          target: "Speak",
+          target: 'Speak',
           actions: assign({
             messages: ({ context, event }) => {
               console.log(`LLM event output: ${event.output}`);
@@ -97,30 +95,30 @@ const dmMachine = setup({
                 ...messages,
                 {
                   role: ROLES.Assistant,
-                  content: event.output ?? "",
+                  content: event.output ?? '',
                 },
               ];
             },
           }),
         },
         onError: {
-          target: "Error",
+          target: 'Error',
         },
       },
     },
     QueryRAG: {
       invoke: {
-        id: "queryRagActor",
-        src: "queryRagActor",
+        id: 'queryRagActor',
+        src: 'queryRagActor',
         input: ({ context }) => ({
-          query: context.lastResult?.[0]?.utterance ?? "",
+          query: context.lastResult?.[0]?.utterance ?? '',
         }),
         onDone: {
-          target: "GenerateLLMResponse",
+          target: 'GenerateLLMResponse',
           actions: assign({
             messages: ({ context, event }) => {
               const { messages } = context;
-              const userQuestion = context.lastResult?.[0]?.utterance ?? "";
+              const userQuestion = context.lastResult?.[0]?.utterance ?? '';
               const ragResults = event.output;
 
               const conversationHistory = messages.filter(
@@ -142,50 +140,48 @@ const dmMachine = setup({
           }),
         },
         onError: {
-          target: "Error",
+          target: 'Error',
         },
       },
     },
     Speak: {
       entry: {
-        type: "spst.speak",
+        type: 'spst.speak',
         params: ({ context }) => ({
           utterance:
-            context.messages[context.messages.length - 1]?.content ||
-            prompts.defaultGreeting,
+            context.messages[context.messages.length - 1]?.content || prompts.defaultGreeting,
         }),
       },
-      on: { SPEAK_COMPLETE: "Ask" },
+      on: { SPEAK_COMPLETE: 'Ask' },
     },
     NoInput: {
       entry: {
-        type: "spst.speak",
+        type: 'spst.speak',
         params: ({ context }) => ({
-          utterance:
-            prompts.noInput[context.noInputCount - 1] || prompts.cannotHear,
+          utterance: prompts.noInput[context.noInputCount - 1] || prompts.cannotHear,
         }),
       },
       on: {
         SPEAK_COMPLETE: [
           {
-            target: "Done",
+            target: 'Done',
             guard: ({ context }) => context.noInputCount >= NO_INPUT_THRESHOLD,
           },
           {
-            target: "Ask",
+            target: 'Ask',
           },
         ],
       },
     },
     Error: {
       entry: {
-        type: "spst.speak",
+        type: 'spst.speak',
         params: { utterance: prompts.llmError },
       },
-      on: { SPEAK_COMPLETE: "Ask" },
+      on: { SPEAK_COMPLETE: 'Ask' },
     },
     Ask: {
-      entry: [assign({ lastResult: null }), { type: "spst.listen" }],
+      entry: [assign({ lastResult: null }), { type: 'spst.listen' }],
       on: {
         RECOGNISED: {
           actions: assign({
@@ -201,12 +197,11 @@ const dmMachine = setup({
         },
         LISTEN_COMPLETE: [
           {
-            target: "QueryRAG",
-            guard: ({ context }) =>
-              !!context.lastResult?.[0]?.utterance?.trim(),
+            target: 'QueryRAG',
+            guard: ({ context }) => !!context.lastResult?.[0]?.utterance?.trim(),
           },
           {
-            target: "NoInput",
+            target: 'NoInput',
           },
         ],
       },
@@ -223,7 +218,7 @@ const dmMachine = setup({
         noInputCount: 0,
       }),
       on: {
-        CLICK: "GenerateLLMResponse",
+        CLICK: 'GenerateLLMResponse',
       },
     },
   },
@@ -232,17 +227,17 @@ const dmMachine = setup({
 const dmActor = createActor(dmMachine, {}).start();
 
 dmActor.subscribe((state) => {
-  console.group("State update");
-  console.log("State value:", state.value);
-  console.log("State context:", state.context);
+  console.group('State update');
+  console.log('State value:', state.value);
+  console.log('State context:', state.context);
   console.groupEnd();
 });
 
 export function setupButton(element: HTMLButtonElement) {
   const clickHandler = () => {
-    dmActor.send({ type: "CLICK" });
+    dmActor.send({ type: 'CLICK' });
   };
-  element.addEventListener("click", clickHandler);
+  element.addEventListener('click', clickHandler);
 
   const subscription = dmActor.subscribe((snapshot) => {
     const meta: { view?: string } = Object.values(
@@ -254,7 +249,7 @@ export function setupButton(element: HTMLButtonElement) {
   });
 
   return () => {
-    element.removeEventListener("click", clickHandler);
+    element.removeEventListener('click', clickHandler);
     subscription.unsubscribe();
   };
 }

@@ -1,7 +1,7 @@
-import { Hypothesis, SpeechStateExternalEvent } from 'speechstate';
-import { AnyActorRef } from 'xstate';
+import type { Hypothesis, SpeechStateExternalEvent } from 'speechstate';
+import type { AnyActorRef } from 'xstate';
 
-import { ROLES } from './constants';
+import type { ROLES } from './constants';
 
 export interface DMContext {
   spstRef: AnyActorRef;
@@ -11,10 +11,7 @@ export interface DMContext {
   noInputCount: number;
 }
 
-export type DMEvents =
-  | SpeechStateExternalEvent
-  | { type: "CLICK" }
-  | { type: "DONE" };
+export type DMEvents = SpeechStateExternalEvent | { type: 'CLICK' } | { type: 'DONE' };
 
 export type MessageRole = (typeof ROLES)[keyof typeof ROLES];
 

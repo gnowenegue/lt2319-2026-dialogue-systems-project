@@ -1,11 +1,6 @@
-import {
-  MealDBFilterResponse,
-  MealDBMeal,
-  MealDBResponse,
-  MealDBSummary,
-} from "./types";
+import type { MealDBFilterResponse, MealDBMeal, MealDBResponse, MealDBSummary } from './types';
 
-const BASE_URL = "https://www.themealdb.com/api/json/v1/1";
+const BASE_URL = 'https://www.themealdb.com/api/json/v1/1';
 
 /**
  * Helper to fetch and parse JSON from TheMealDB with descriptive error handling
@@ -45,7 +40,7 @@ export async function getMealById(id: string): Promise<MealDBMeal | null> {
  * Fetch a single random meal recipe
  */
 export async function getRandomMeal(): Promise<MealDBMeal | null> {
-  const data = await fetchFromMealDB<MealDBResponse>("random.php");
+  const data = await fetchFromMealDB<MealDBResponse>('random.php');
   return data.meals?.[0] ?? null;
 }
 
@@ -53,13 +48,9 @@ export async function getRandomMeal(): Promise<MealDBMeal | null> {
  * Filter meals by primary ingredient (returns light summaries)
  * Note: Does not contain full ingredients or instructions. Call getMealById to hydrate.
  */
-export async function filterMealsByIngredient(
-  ingredient: string,
-): Promise<MealDBSummary[]> {
-  const encoded = encodeURIComponent(ingredient.trim().replace(/\s+/g, "_"));
-  const data = await fetchFromMealDB<MealDBFilterResponse>(
-    `filter.php?i=${encoded}`,
-  );
+export async function filterMealsByIngredient(ingredient: string): Promise<MealDBSummary[]> {
+  const encoded = encodeURIComponent(ingredient.trim().replace(/\s+/g, '_'));
+  const data = await fetchFromMealDB<MealDBFilterResponse>(`filter.php?i=${encoded}`);
   return data.meals ?? [];
 }
 
@@ -67,12 +58,8 @@ export async function filterMealsByIngredient(
  * Filter meals by category (returns light summaries)
  * Note: Does not contain full ingredients or instructions. Call getMealById to hydrate.
  */
-export async function filterMealsByCategory(
-  category: string,
-): Promise<MealDBSummary[]> {
+export async function filterMealsByCategory(category: string): Promise<MealDBSummary[]> {
   const encoded = encodeURIComponent(category.trim());
-  const data = await fetchFromMealDB<MealDBFilterResponse>(
-    `filter.php?c=${encoded}`,
-  );
+  const data = await fetchFromMealDB<MealDBFilterResponse>(`filter.php?c=${encoded}`);
   return data.meals ?? [];
 }
