@@ -1,0 +1,13 @@
+# Scalding
+<!-- Source: https://en.wikibooks.org/wiki/Cookbook:Scalding (CC BY-SA 4.0) -->
+
+Scalding is a technique used in many recipes containing milk. 
+
+## Technique
+To scald milk bring it nearly to a boil (185°F, 85°C, or more), preferably in a thick-bottomed pan, and stirring actively, to keep a protein skin from forming on the surface and keep the proteins and sugar from sticking to the bottom. To scald milk, you use a heavy bottomed pan or double boiler and bring the temperature of the milk to 85-100°C (185-212°F). At sea level, the milk should just start showing small bubbles and releasing steam at the lower end of this temperature range. Care must be taken to not allow the pan to heat too quickly, or the solids in the milk will stick to the bottom of the pan and burn or scorch. Scorched milk has a very distinctive and unpleasant taste, and it can ruin the whole pot of milk. Frequent stirring and scraping of the pan bottom will help keep the solids in suspension. A lid will help keep a "skin," caused by surface evaporation, from forming.
+
+## Effects
+The purposes of scalding in any given recipe can be many, as several chemical and biological changes happen during the process. Scalding served two purposes, to kill potentially harmful bacteria in the milk, and to destroy enzymes that keep the milk from thickening in recipes. Pasteurization, however, accomplishes both of those goals, and since almost all store-bought milk in Western countries is pasteurized these days, scalding is essentially an unnecessary step.
+Many pathogens are killed at these temperatures and natural enzymes are neutralized. Pasteurization often achieves the same effect, but can take place at lower temperatures (about 63°C (145°F)) so one must be sure that scalding is not required for other reasons before assuming that the step can be skipped.
+Some milk proteins unfold at scalding temperatures. In yogurt making, this allows for a tighter matrix to form as the proteins refold in the acidic environment, resulting in less whey separation and a firmer end product. This unfolding of protein also seems to help in bread making, resulting in a finer crumb and better rise.
+The higher temperature could also be utilized as an essential element of cooking, e.g. helping sugar dissolve or cooking eggs in custards,and to better incorporate flavors.  Basically, all the different flavors of the ingredients (whether complimentary and/or contrasting) will "come together" better at a hotter temperature. No person wishing to brew tea, to use an analogy, would insert a tea bag in a cup of cold water for the purpose.

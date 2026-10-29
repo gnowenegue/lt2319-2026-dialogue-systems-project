@@ -1,0 +1,8 @@
+# Deglazing
+<!-- Source: https://en.wikibooks.org/wiki/Cookbook:Deglazing (CC BY-SA 4.0) -->
+
+Deglazing is a cooking technique for removing and dissolving browned food residue from a pan to make a sauce, known as a pan sauce, that is often made to accompany sautéed meats. The browned residue is due to either the Maillard reaction or caramelization.
+Generally speaking, a pan sauce is made by sauteing a meat at high temperature in a skillet. The meat is removed and the majority of the fat is poured off, leaving a small amount with the dried and browned meat juices. The pan is returned to the heat, and a liquid such as vegetable or meat stock, an alcoholic beverage, some wine, or W:verjuice is added to act as a solvent. This allows the cook to scrape the dark spots from the bottom of the pan and dissolve them, incorporating the remaining browned material at the bottom of the pan into a basic sauce. The culinary term fond, French for "base" or "foundation", refers to this sauce, although it is also sometimes used to describe the browned food bits instead (commonly in the United States).
+The flavour of the pan sauce is determined chiefly by the meat, the liquid used for deglazing, and any flavouring or finishing ingredients added, such as aromatics, herbs, or butter.
+This method is the cornerstone of many well known sauces and gravies. The resulting liquid can be seasoned and served on its own (sometimes called a jus), or with the addition of aromatic vegetables, such as onions or shallots, carrots and celery, or used as the base for a 
+.  The sauce can also be thickened by whisking in butter, through the addition of a starch, such as flour, cornstarch, or arrowroot, or simply simmered down with a steady heat to form a rich, concentrated reduction.

@@ -1,0 +1,7 @@
+# Clay Pot Cooking
+<!-- Source: https://en.wikibooks.org/wiki/Cookbook:Clay_Pot_Cooking (CC BY-SA 4.0) -->
+
+Clay pot cooking is a technique of cooking food in an unglazed clay pot (or Dolbier which is a French Clay Pot) which has been soaked in water so as to release steam during the cooking process.  This technique has a long history, stretching back at least to ancient Roman times.
+Typically, an unglazed clay pot is submerged for 15 to 30 minutes to absorb water before cooking, then filled with the food and placed into an oven.  The walls of the pot help to diffuse the heat, and as the pot warms it releases the water as steam.
+The food inside the clay pot loses none of its moisture because it is surrounded by steam, creating a tender, flavorful dish.  The evaporation of the water prevents burning so long as the pot is not allowed to heat until it is completely dry.  Because no oil needs to be added with this cooking technique, food cooked in a clay pot may be lower in fat compared with food prepared by other methods such as sautéing or frying.  And unlike boiling, nutrients are not leached out into the water.
+Because of the heat lost to the evaporation of water, clay pot cooking requires higher oven temperature and longer cooking times than traditional roasting with dry heat.  Clay pots may be cleaned by scrubbing them with salt; soaps or detergents should not be used, because the clay may absorb them.
