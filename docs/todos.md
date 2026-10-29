@@ -40,9 +40,9 @@ flowchart TD
 
 ## Phase 2: Recipe Service & Data Layer
 
-- [ ] Implement TheMealDB API client (search by name, ID lookup, offline JSON fallbacks)
-- [ ] Build recipe normalizer (structured ingredients, sequential steps, estimated cooking times)
-- [ ] Add unit tests for recipe parsing and step extraction
+- [x] Implement TheMealDB API client (search by name, ID lookup, category/ingredient filter)
+- [x] Build recipe normalizer (structured ingredients, sentence-level steps, estimated cooking times)
+- [x] Add unit tests for recipe parsing and step extraction
 
 ---
 
