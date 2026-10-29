@@ -3,9 +3,13 @@
 import { Command } from "commander";
 import { readdir, stat } from "node:fs/promises";
 import * as path from "node:path";
-import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
 
+import {
+  env,
+  pipeline,
+  type FeatureExtractionPipeline,
+} from "@huggingface/transformers";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { makeChunksFromFile } from "./chunker";
 
@@ -18,25 +22,37 @@ const client = new QdrantClient({
   checkCompatibility: false,
 });
 
-const openai = new OpenAI({
-  baseURL: process.env.OPENAI_BASE_URL || "http://localhost:11434/v1/",
-  apiKey: process.env.OPENAI_API_KEY || "ollama",
-});
-
 const program = new Command();
 program
   .name("rag-cli")
   .description("Qdrant CLI for Ingestion & Querying")
   .version("1.0.0");
 
-const embed = async (input: string) =>
-  openai.embeddings
-    .create({
-      model: "qwen3-embedding",
-      input: input,
-      dimensions: 384,
-    })
-    .then((result) => result.data[0].embedding);
+export const EMBEDDING_MODEL = "bge-small-en-v1.5";
+export const EMBEDDING_DIMENSIONS = 384;
+
+// Configure Transformers.js to load offline from public/models
+env.localModelPath = path.resolve(process.cwd(), "public/models");
+env.allowRemoteModels = false;
+
+// Lazily load the embedding pipeline once
+let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
+const getExtractor = (): Promise<FeatureExtractionPipeline> => {
+  if (!extractorPromise) {
+    extractorPromise = pipeline(
+      "feature-extraction",
+      EMBEDDING_MODEL,
+      { dtype: "q8" },
+    ) as Promise<FeatureExtractionPipeline>;
+  }
+  return extractorPromise;
+};
+
+const embed = async (input: string): Promise<number[]> => {
+  const extractor = await getExtractor();
+  const output = await extractor(input, { pooling: "mean", normalize: true });
+  return Array.from(output.data as Float32Array);
+};
 
 const getMarkdownFiles = async (targetPath: string): Promise<string[]> => {
   const s = await stat(targetPath);
@@ -87,7 +103,7 @@ program
   .argument("<name>", "collection name")
   .action(async (name: string) => {
     await client.createCollection(name, {
-      vectors: { size: 384, distance: "Cosine" },
+      vectors: { size: EMBEDDING_DIMENSIONS, distance: "Cosine" },
     });
     console.log(`Successfully created collection: ${name}`);
   });
@@ -120,10 +136,10 @@ program
 
       const points = await Promise.all(
         chunks.map(async (chunk) => {
-          const embedding = await embed(chunk.text);
+          const vector = await embed(chunk.text);
           return {
             id: uuidv4(),
-            vector: embedding,
+            vector,
             payload: {
               text: chunk.text,
               ...chunk.metadata,
