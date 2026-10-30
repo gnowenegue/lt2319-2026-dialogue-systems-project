@@ -1,58 +1,27 @@
 #!/usr/bin/env node
 
-import { Command } from "commander";
-import { readdir, stat } from "node:fs/promises";
-import * as path from "node:path";
-import { v4 as uuidv4 } from "uuid";
-
+import { readdir, stat } from 'node:fs/promises';
+import * as path from 'node:path';
+import { QdrantClient } from '@qdrant/js-client-rest';
+import { Command } from 'commander';
+import { v4 as uuidv4 } from 'uuid';
 import {
-  env,
-  pipeline,
-  type FeatureExtractionPipeline,
-} from "@huggingface/transformers";
-import { QdrantClient } from "@qdrant/js-client-rest";
-import { makeChunksFromFile } from "./chunker";
-
-const qdrantUrl = process.env.VITE_QDRANT_URL || "http://localhost:6333";
-const parsedUrl = new URL(qdrantUrl);
+  CULINARY_COLLECTION,
+  DEFAULT_QDRANT_PORT,
+  DEFAULT_QDRANT_URL,
+  EMBEDDING_DIMENSIONS,
+  embedQuery,
+} from '../src/rag';
+import { makeChunksFromFile } from './chunker';
 
 const client = new QdrantClient({
-  host: parsedUrl.hostname,
-  port: Number(parsedUrl.port) || 6333,
+  url: process.env.VITE_QDRANT_URL || DEFAULT_QDRANT_URL,
+  port: Number(process.env.VITE_QDRANT_PORT) || DEFAULT_QDRANT_PORT,
   checkCompatibility: false,
 });
 
 const program = new Command();
-program
-  .name("rag-cli")
-  .description("Qdrant CLI for Ingestion & Querying")
-  .version("1.0.0");
-
-export const EMBEDDING_MODEL = "bge-small-en-v1.5";
-export const EMBEDDING_DIMENSIONS = 384;
-
-// Configure Transformers.js to load offline from public/models
-env.localModelPath = path.resolve(process.cwd(), "public/models");
-env.allowRemoteModels = false;
-
-// Lazily load the embedding pipeline once
-let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
-const getExtractor = (): Promise<FeatureExtractionPipeline> => {
-  if (!extractorPromise) {
-    extractorPromise = pipeline(
-      "feature-extraction",
-      EMBEDDING_MODEL,
-      { dtype: "q8" },
-    ) as Promise<FeatureExtractionPipeline>;
-  }
-  return extractorPromise;
-};
-
-const embed = async (input: string): Promise<number[]> => {
-  const extractor = await getExtractor();
-  const output = await extractor(input, { pooling: "mean", normalize: true });
-  return Array.from(output.data as Float32Array);
-};
+program.name('rag-cli').description('Qdrant CLI for Ingestion & Querying').version('1.0.0');
 
 const getMarkdownFiles = async (targetPath: string): Promise<string[]> => {
   const s = await stat(targetPath);
@@ -63,7 +32,7 @@ const getMarkdownFiles = async (targetPath: string): Promise<string[]> => {
       const fullPath = path.join(targetPath, entry.name);
       if (entry.isDirectory()) {
         files.push(...(await getMarkdownFiles(fullPath)));
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
         files.push(fullPath);
       }
     }
@@ -73,9 +42,9 @@ const getMarkdownFiles = async (targetPath: string): Promise<string[]> => {
 };
 
 program
-  .command("split")
-  .description("Split file at <path> into section-aware chunks and print.")
-  .argument("<path>", "file path")
+  .command('split')
+  .description('Split file at <path> into section-aware chunks and print.')
+  .argument('<path>', 'file path')
   .action(async (filePath: string) => {
     const chunks = await makeChunksFromFile(filePath);
     chunks.forEach((c, ix) => {
@@ -87,46 +56,62 @@ program
   });
 
 program
-  .command("listCollections")
-  .description("List all collections in Qdrant")
+  .command('listCollections')
+  .description('List all collections in Qdrant')
   .action(async () => {
     const res = await client.getCollections();
     console.log(
-      "Qdrant collections:",
+      'Qdrant collections:',
       res.collections.map((c) => c.name),
     );
   });
 
 program
-  .command("createCollection")
-  .description("Create a collection in Qdrant")
-  .argument("<name>", "collection name")
-  .action(async (name: string) => {
+  .command('createCollection')
+  .description('Create a collection in Qdrant')
+  .argument('[name]', 'collection name', CULINARY_COLLECTION)
+  .action(async (name: string = CULINARY_COLLECTION) => {
     await client.createCollection(name, {
-      vectors: { size: EMBEDDING_DIMENSIONS, distance: "Cosine" },
+      vectors: { size: EMBEDDING_DIMENSIONS, distance: 'Cosine' },
     });
     console.log(`Successfully created collection: ${name}`);
   });
 
 program
-  .command("deleteCollection")
-  .description("Delete a collection in Qdrant")
-  .argument("<name>", "collection name")
-  .action(async (name: string) => {
+  .command('deleteCollection')
+  .description('Delete a collection in Qdrant')
+  .argument('[name]', 'collection name', CULINARY_COLLECTION)
+  .action(async (name: string = CULINARY_COLLECTION) => {
     await client.deleteCollection(name);
     console.log(`Successfully deleted collection: ${name}`);
   });
 
 program
-  .command("addData")
-  .description(
-    "Chunk data at <path> (file or directory) and add it to a collection.",
-  )
-  .argument("<collection>", "collection name")
-  .argument("<path>", "file or directory path")
-  .action(async (collection: string, targetPath: string) => {
-    const files = await getMarkdownFiles(targetPath);
-    console.log(`Processing ${files.length} file(s) for ingestion...`);
+  .command('addData')
+  .description('Chunk data at <path> (file or directory) and add it to a collection.')
+  .argument('<path>', 'file or directory path')
+  .argument('[collection]', 'collection name', CULINARY_COLLECTION)
+  .action(async (targetPath: string, collection: string = CULINARY_COLLECTION) => {
+    let finalPath = targetPath;
+    let finalCollection = collection;
+
+    // support backwards compatibility if user passes collection first
+    try {
+      await stat(targetPath);
+    } catch {
+      if (collection) {
+        try {
+          await stat(collection);
+          finalPath = collection;
+          finalCollection = targetPath;
+        } catch {
+          // let default path proceed to throw standard error
+        }
+      }
+    }
+
+    const files = await getMarkdownFiles(finalPath);
+    console.log(`Processing ${files.length} file(s) for ingestion into "${finalCollection}"...`);
 
     let totalChunks = 0;
     for (let i = 0; i < files.length; i++) {
@@ -136,7 +121,7 @@ program
 
       const points = await Promise.all(
         chunks.map(async (chunk) => {
-          const vector = await embed(chunk.text);
+          const vector = await embedQuery(chunk.text);
           return {
             id: uuidv4(),
             vector,
@@ -148,7 +133,7 @@ program
         }),
       );
 
-      await client.upsert(collection, { wait: true, points });
+      await client.upsert(finalCollection, { wait: true, points });
       totalChunks += chunks.length;
       console.log(
         `[${i + 1}/${files.length}] Added ${chunks.length} chunks from ${path.basename(file)}`,
@@ -156,26 +141,35 @@ program
     }
 
     console.log(
-      `\nSuccessfully added ${totalChunks} total chunks into collection: ${collection}`,
+      `\nSuccessfully added ${totalChunks} total chunks into collection: ${finalCollection}`,
     );
   });
 
 program
-  .command("query")
-  .description("Query a collection with semantic vector search")
-  .argument("<collection>", "collection name")
-  .argument("<query>", "search query string")
-  .option("-l, --limit <number>", "limit number of results", "3")
+  .command('query')
+  .description('Query a collection with semantic vector search')
+  .argument('<query>', 'search query string')
+  .argument('[collection]', 'collection name', CULINARY_COLLECTION)
+  .option('-l, --limit <number>', 'limit number of results', '3')
   .action(
     async (
-      collection: string,
       queryStr: string,
+      collection: string = CULINARY_COLLECTION,
       options: { limit: string },
     ) => {
+      let finalQuery = queryStr;
+      let finalCollection = collection;
+
+      // support backwards compatibility if user passes collection first
+      if (queryStr === CULINARY_COLLECTION && collection !== CULINARY_COLLECTION) {
+        finalQuery = collection;
+        finalCollection = CULINARY_COLLECTION;
+      }
+
       const limit = parseInt(options.limit, 10) || 3;
-      console.log(`Querying "${collection}" for: "${queryStr}"...`);
-      const embedding = await embed(queryStr);
-      const results = await client.query(collection, {
+      console.log(`Querying "${finalCollection}" for: "${finalQuery}"...`);
+      const embedding = await embedQuery(finalQuery);
+      const results = await client.query(finalCollection, {
         query: embedding,
         limit,
         with_payload: true,
@@ -191,7 +185,7 @@ program
         };
         if (payload?.category || payload?.topic) {
           console.log(
-            `Category: ${payload?.category ?? "n/a"} | Topic: ${payload?.topic ?? "n/a"}`,
+            `Category: ${payload?.category ?? 'n/a'} | Topic: ${payload?.topic ?? 'n/a'}`,
           );
         }
         console.log(`${payload?.text}\n`);
