@@ -6,7 +6,7 @@ import type { ROLES } from './constants';
 export interface DMContext {
   spstRef: AnyActorRef;
   lastResult: Hypothesis[] | null;
-  // nextUtterance: string;
+  // optional queued message text for the assistant to speak on the next turn
   messages: Message[];
   noInputCount: number;
 }

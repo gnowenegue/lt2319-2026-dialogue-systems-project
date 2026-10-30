@@ -125,7 +125,7 @@ describe('Recipe Normalizer', () => {
       expect(recipe.tags).toEqual(['Pasta', 'Curry']);
       expect(recipe.ingredients).toHaveLength(1);
       expect(recipe.steps).toHaveLength(3);
-      expect(recipe.totalEstimatedMinutes).toBe(11); // 9 + 2
+      expect(recipe.totalEstimatedMinutes).toBe(11); // sums 9 minutes from step 1 and 2 minutes from step 2
     });
   });
 });

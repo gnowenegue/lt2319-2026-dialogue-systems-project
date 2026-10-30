@@ -3,9 +3,7 @@ import type { MealDBMeal, NormalizedRecipe, RecipeIngredient, RecipeStep } from 
 
 const sentenceSegmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
 
-/**
- * Extracts structured ingredients from TheMealDB's 20 flat slots.
- */
+// extract structured ingredients from TheMealDB 20 flat slots
 export function extractIngredients(meal: MealDBMeal): RecipeIngredient[] {
   const ingredients: RecipeIngredient[] = [];
 
@@ -24,9 +22,7 @@ export function extractIngredients(meal: MealDBMeal): RecipeIngredient[] {
   return ingredients;
 }
 
-/**
- * Splits raw instructions into sentence-level steps and detects cooking times.
- */
+// split raw instructions into sentence-level steps and detect cooking times in minutes
 export function extractSteps(instructions: string): RecipeStep[] {
   if (!instructions?.trim()) return [];
 
@@ -46,9 +42,7 @@ export function extractSteps(instructions: string): RecipeStep[] {
   });
 }
 
-/**
- * Normalizes a raw TheMealDB meal record into a clean, structured recipe for the dialogue session.
- */
+// normalize a raw TheMealDB meal record into a clean, structured recipe for the dialogue session
 export function normalizeMealDBRecipe(meal: MealDBMeal): NormalizedRecipe {
   const ingredients = extractIngredients(meal);
   const steps = extractSteps(meal.strInstructions || '');

@@ -6,7 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
 
-    /* Bundler mode */
+    // bundler mode configuration
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
@@ -14,7 +14,7 @@
     "noEmit": true,
     "types": ["node"],
 
-    /* Linting */
+    // linting and compiler checks
     "strict": true,
     // "noUnusedLocals": true,
     "noUnusedParameters": false,

@@ -7,7 +7,7 @@ import prompts from './prompts';
 import { getChatCompletions, queryQdrant } from './services';
 import type { DMContext, DMEvents, Message } from './types';
 
-/** backup: Azure access via FLoV proxy
+/* backup: Azure access via FLoV proxy
 const azureProxyCredentials = {
   proxyUrl: "https://rndserv.flov.gu.se:4000/api/token",
   key: "",
@@ -36,12 +36,12 @@ const queryRagLogic = fromPromise(async ({ input }: { input: { query: string } }
 
 const dmMachine = setup({
   types: {
-    /** you might need to extend these */
+    // extend `DMContext` and `DMEvents` here when adding new state variables or user events
     context: {} as DMContext,
     events: {} as DMEvents,
   },
   actions: {
-    /** define your actions here */
+    // define reusable state machine actions here (like triggering speech or starting listening)
     'spst.speak': ({ context }, params: { utterance: string }) =>
       context.spstRef.send({
         type: 'SPEAK',
