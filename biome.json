@@ -37,5 +37,12 @@
         "noExplicitAny": "error"
       }
     }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }

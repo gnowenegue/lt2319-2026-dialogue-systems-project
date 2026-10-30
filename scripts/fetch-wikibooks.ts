@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 
-import { Command } from "commander";
-import { mkdir, writeFile } from "node:fs/promises";
-import * as path from "node:path";
+import { mkdir, writeFile } from 'node:fs/promises';
+import * as path from 'node:path';
+import { Command } from 'commander';
 
-const WIKIMEDIA_API_URL = "https://en.wikibooks.org/w/api.php";
-const USER_AGENT =
-  "CookingDialogueCopilot/1.0 (academic course project; student@gu.se)";
+const WIKIMEDIA_API_URL = 'https://en.wikibooks.org/w/api.php';
+const USER_AGENT = 'CookingDialogueCopilot/1.0 (academic course project; student@gu.se)';
 
 const program = new Command();
 program
-  .name("fetch-wikibooks")
-  .description("Fetch culinary knowledge directly from Wikibooks MediaWiki API")
-  .version("1.0.0");
+  .name('fetch-wikibooks')
+  .description('Fetch culinary knowledge directly from Wikibooks MediaWiki API')
+  .version('1.0.0');
 
 interface CategoryMember {
   pageid: number;
@@ -35,53 +34,48 @@ interface PageExtractResponse {
 
 const toSlug = (title: string): string => {
   return title
-    .replace(/^Cookbook:/i, "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip diacritics
+    .replace(/^Cookbook:/i, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove diacritics to create clean url slugs
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 };
 
 const cleanExtract = (title: string, rawExtract: string): string => {
-  const cleanTitle = title.replace(/^Cookbook:/i, "").trim();
-  const wikiUrl = `https://en.wikibooks.org/wiki/${title.replace(/ /g, "_")}`;
+  const cleanTitle = title.replace(/^Cookbook:/i, '').trim();
+  const wikiUrl = `https://en.wikibooks.org/wiki/${title.replace(/ /g, '_')}`;
 
-  const lines = rawExtract.split("\n");
+  const lines = rawExtract.split('\n');
   const filteredLines = lines.filter(
-    (line) =>
-      !line.match(
-        /^Cookbook\s*\|.*?(Recipes|Ingredients|Equipment|Techniques)/i,
-      ),
+    (line) => !line.match(/^Cookbook\s*\|.*?(Recipes|Ingredients|Equipment|Techniques)/i),
   );
 
-  let text = filteredLines.join("\n").trim();
+  let text = filteredLines.join('\n').trim();
 
-  // Convert wikitext section headers to Markdown
+  // convert wikitext section headers to markdown
   text = text
-    .replace(/^====\s*(.+?)\s*====$/gm, "#### $1")
-    .replace(/^===\s*(.+?)\s*===$/gm, "### $1")
-    .replace(/^==\s*(.+?)\s*==$/gm, "## $1");
+    .replace(/^====\s*(.+?)\s*====$/gm, '#### $1')
+    .replace(/^===\s*(.+?)\s*===$/gm, '### $1')
+    .replace(/^==\s*(.+?)\s*==$/gm, '## $1');
 
-  // Normalize excessive blank lines
-  text = text.replace(/\n{3,}/g, "\n\n");
+  // normalize excessive blank lines
+  text = text.replace(/\n{3,}/g, '\n\n');
 
   return `# ${cleanTitle}\n<!-- Source: ${wikiUrl} (CC BY-SA 4.0) -->\n\n${text}\n`;
 };
 
-const fetchCategoryMembers = async (
-  categoryTitle: string,
-): Promise<CategoryMember[]> => {
+const fetchCategoryMembers = async (categoryTitle: string): Promise<CategoryMember[]> => {
   const params = new URLSearchParams({
-    action: "query",
-    list: "categorymembers",
+    action: 'query',
+    list: 'categorymembers',
     cmtitle: categoryTitle,
-    cmlimit: "500",
-    format: "json",
+    cmlimit: '500',
+    format: 'json',
   });
 
   const res = await fetch(`${WIKIMEDIA_API_URL}?${params.toString()}`, {
-    headers: { "User-Agent": USER_AGENT },
+    headers: { 'User-Agent': USER_AGENT },
   });
 
   if (!res.ok) {
@@ -94,19 +88,17 @@ const fetchCategoryMembers = async (
   return data.query?.categorymembers ?? [];
 };
 
-const fetchPageExtract = async (
-  title: string,
-): Promise<string | null> => {
+const fetchPageExtract = async (title: string): Promise<string | null> => {
   const params = new URLSearchParams({
-    action: "query",
-    prop: "extracts",
-    explaintext: "1",
+    action: 'query',
+    prop: 'extracts',
+    explaintext: '1',
     titles: title,
-    format: "json",
+    format: 'json',
   });
 
   const res = await fetch(`${WIKIMEDIA_API_URL}?${params.toString()}`, {
-    headers: { "User-Agent": USER_AGENT },
+    headers: { 'User-Agent': USER_AGENT },
   });
 
   if (!res.ok) {
@@ -121,19 +113,19 @@ const fetchPageExtract = async (
 };
 
 const SUBTITUTIONS_PAGES = [
-  "Cookbook:Substitutions",
-  "Cookbook:Vegan Substitutions",
-  "Cookbook:Garlic",
-  "Cookbook:Olive Oil",
-  "Cookbook:Egg",
-  "Cookbook:Cornstarch",
-  "Cookbook:Cream",
-  "Cookbook:Bread Crumbs",
-  "Cookbook:Honey",
-  "Cookbook:Parsley",
-  "Cookbook:Margarine",
-  "Cookbook:Turmeric",
-  "Cookbook:Cheese",
+  'Cookbook:Substitutions',
+  'Cookbook:Vegan Substitutions',
+  'Cookbook:Garlic',
+  'Cookbook:Olive Oil',
+  'Cookbook:Egg',
+  'Cookbook:Cornstarch',
+  'Cookbook:Cream',
+  'Cookbook:Bread Crumbs',
+  'Cookbook:Honey',
+  'Cookbook:Parsley',
+  'Cookbook:Margarine',
+  'Cookbook:Turmeric',
+  'Cookbook:Cheese',
 ];
 
 const fetchPageList = async (pages: string[], outputDir: string) => {
@@ -154,13 +146,13 @@ const fetchPageList = async (pages: string[], outputDir: string) => {
       }
 
       const markdown = cleanExtract(title, rawExtract);
-      await writeFile(filePath, markdown, "utf8");
+      await writeFile(filePath, markdown, 'utf8');
       successCount++;
       console.log(
         `[${i + 1}/${pages.length}] Saved: ${path.relative(process.cwd(), filePath)} (${title})`,
       );
 
-      // Polite delay between requests
+      // pause briefly between requests to avoid rate limits from the Wikibooks API
       await new Promise((resolve) => setTimeout(resolve, 80));
     } catch (err) {
       console.error(`[${i + 1}/${pages.length}] Error fetching ${title}:`, err);
@@ -174,13 +166,11 @@ const fetchPageList = async (pages: string[], outputDir: string) => {
 
 const fetchCookingTechniques = async (outputDir: string) => {
   await mkdir(outputDir, { recursive: true });
-  console.log("Fetching list of pages from Category:Cooking_techniques...");
+  console.log('Fetching list of pages from Category:Cooking_techniques...');
 
-  const members = await fetchCategoryMembers("Category:Cooking_techniques");
-  // Filter for valid Cookbook pages (ns: 102) and ignore category subpages
-  const pages = members.filter(
-    (m) => m.ns === 102 && !m.title.startsWith("Category:"),
-  );
+  const members = await fetchCategoryMembers('Category:Cooking_techniques');
+  // filter for valid cookbook pages (namespace 102) and ignore category subpages
+  const pages = members.filter((m) => m.ns === 102 && !m.title.startsWith('Category:'));
 
   console.log(`Found ${pages.length} technique articles to fetch.\n`);
 
@@ -198,19 +188,16 @@ const fetchCookingTechniques = async (outputDir: string) => {
       }
 
       const markdown = cleanExtract(page.title, rawExtract);
-      await writeFile(filePath, markdown, "utf8");
+      await writeFile(filePath, markdown, 'utf8');
       successCount++;
       console.log(
         `[${i + 1}/${pages.length}] Saved: ${path.relative(process.cwd(), filePath)} (${page.title})`,
       );
 
-      // Polite delay between requests
+      // pause briefly between requests to avoid rate limits from the Wikibooks API
       await new Promise((resolve) => setTimeout(resolve, 80));
     } catch (err) {
-      console.error(
-        `[${i + 1}/${pages.length}] Error fetching ${page.title}:`,
-        err,
-      );
+      console.error(`[${i + 1}/${pages.length}] Error fetching ${page.title}:`, err);
     }
   }
 
@@ -220,54 +207,44 @@ const fetchCookingTechniques = async (outputDir: string) => {
 };
 
 program
-  .command("techniques")
-  .description("Fetch all pages from Category:Cooking_techniques into data/knowledge/techniques")
+  .command('techniques')
+  .description('Fetch all pages from Category:Cooking_techniques into data/knowledge/techniques')
   .option(
-    "-o, --out <dir>",
-    "output directory",
-    path.join(process.cwd(), "data", "knowledge", "techniques"),
+    '-o, --out <dir>',
+    'output directory',
+    path.join(process.cwd(), 'data', 'knowledge', 'techniques'),
   )
   .action(async (options: { out: string }) => {
     await fetchCookingTechniques(options.out);
   });
 
 program
-  .command("substitutions")
+  .command('substitutions')
   .description(
-    "Fetch substitution hub and staple ingredient pages into data/knowledge/substitutions",
+    'Fetch substitution hub and staple ingredient pages into data/knowledge/substitutions',
   )
   .option(
-    "-o, --out <dir>",
-    "output directory",
-    path.join(process.cwd(), "data", "knowledge", "substitutions"),
+    '-o, --out <dir>',
+    'output directory',
+    path.join(process.cwd(), 'data', 'knowledge', 'substitutions'),
   )
   .action(async (options: { out: string }) => {
     await fetchPageList(SUBTITUTIONS_PAGES, options.out);
   });
 
 program
-  .command("all")
-  .description("Fetch all configured culinary categories from Wikibooks")
+  .command('all')
+  .description('Fetch all configured culinary categories from Wikibooks')
   .action(async () => {
-    const techniquesDir = path.join(
-      process.cwd(),
-      "data",
-      "knowledge",
-      "techniques",
-    );
-    const substitutionsDir = path.join(
-      process.cwd(),
-      "data",
-      "knowledge",
-      "substitutions",
-    );
+    const techniquesDir = path.join(process.cwd(), 'data', 'knowledge', 'techniques');
+    const substitutionsDir = path.join(process.cwd(), 'data', 'knowledge', 'substitutions');
     await fetchCookingTechniques(techniquesDir);
     await fetchPageList(SUBTITUTIONS_PAGES, substitutionsDir);
   });
 
-// Default to running techniques if no subcommand is passed
+// default to running `techniques` if no subcommand is passed
 if (process.argv.length <= 2) {
-  process.argv.push("techniques");
+  process.argv.push('techniques');
 }
 
 program.parse();
