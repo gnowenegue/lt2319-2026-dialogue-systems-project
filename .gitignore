@@ -151,3 +151,6 @@ vite.config.ts.timestamp-*
 # RAG
 qdrant_data/
 **/qdrant_data/
+
+# VS Code workspace files
+*.code-workspace
