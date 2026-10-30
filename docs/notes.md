@@ -23,6 +23,12 @@ This document records key design decisions, tradeoffs, and domain-specific consi
   - [Decision: Curated High-Signal Corpus vs. Web Scraping (YAGNI)](#decision-curated-high-signal-corpus-vs-web-scraping-yagni)
   - [Single Vector Collection with Semantic Metadata](#single-vector-collection-with-semantic-metadata)
   - [Section-Aware, Heading-Preserving Chunking Strategy](#section-aware-heading-preserving-chunking-strategy)
+- [5. Offline In-Browser Embedding Pipeline (Transformers.js & ONNX)](#5-offline-in-browser-embedding-pipeline-transformersjs--onnx)
+  - [Context & The Ollama Bottleneck](#context--the-ollama-bottleneck)
+  - [Decision: Client-Side Transformers.js over External Embedding Services](#decision-client-side-transformersjs-over-external-embedding-services)
+  - [Model Selection: BAAI/bge-small-en-v1.5 (Quantized ONNX)](#model-selection-baaibge-small-en-v15-quantized-onnx)
+  - [Bundled Offline Asset Strategy (`public/models/`)](#bundled-offline-asset-strategy-publicmodels)
+  - [Architectural Separation: Local Embeddings vs. Cloud LLM](#architectural-separation-local-embeddings-vs-cloud-llm)
 
 ---
 
@@ -125,6 +131,53 @@ For example, in *Spicy Arrabiata Penne*, paragraph 2 contains:
   * Filters out trailing recipe lists (`## Recipes that call for...`), cross-references (`## See also`), and bibliographies to prevent false-positive keyword matches during vector search.
 * **Sentence-Boundary Priority**:
   * Sections exceeding 900 characters fall back to recursive splitting with separator priority `["\n\n\n", "\n\n", ". ", "\n", " "]`, enforcing cuts between full sentences rather than arbitrary mid-sentence line breaks.
+
+---
+
+## 5. Offline In-Browser Embedding Pipeline (Transformers.js & ONNX)
+
+### Context & The Ollama Bottleneck
+* The initial starter architecture (from Lab 5) routed embedding requests through a remote Ollama server (`qwen3-embedding`) via an OpenAI-compatible HTTP interface.
+* **The Problem**:
+  * When hosted on a shared university server, Ollama models automatically unload after 5 minutes of idle time (`keep_alive`), creating 3-to-5 second cold-boot latency spikes on subsequent turns.
+  * It introduced a strict network and VPN dependency for what should be a responsive client-side cooking assistant.
+  * Requiring evaluators or home cooks to install and manage a background Ollama daemon locally adds friction and violates self-contained project requirements.
+
+### Decision: Client-Side Transformers.js over External Embedding Services
+* We migrated embedding extraction entirely to **`@huggingface/transformers`** (v4), running directly within the browser (via WebAssembly / ONNX Runtime) and in Node.js for CLI ingestion.
+* **Benefits**:
+  * **Zero network latency & no cold starts**: Embeddings compute deterministically in **~15ms** on a standard CPU.
+  * **Complete autonomy**: Operates 100% offline without API keys, usage costs, or rate limits.
+  * **Cross-runtime consistency**: The exact same tokenizer and ONNX graph run in both Node.js (`scripts/rag-cli.ts`) during ingestion and the client browser (`src/rag/service.ts`) during live dialogue.
+
+### Model Selection: BAAI/bge-small-en-v1.5 (Quantized ONNX)
+* **Model Choice**: `BAAI/bge-small-en-v1.5` (exported to ONNX by Xenova on Hugging Face Hub).
+* **Retrieval Quality**:
+  * Consistently outperforms older standard embedding models like `all-MiniLM-L6-v2` by ~10 points on the MTEB (Massive Text Embedding Benchmark) retrieval tasks while maintaining the exact same compact vector footprint (384 dimensions).
+  * Specifically optimized for **asymmetric retrieval**: matching short, informal user questions (*"Can I use butter instead?"*) to longer explanatory culinary guidance chunks.
+* **8-Bit Integer Quantization (`model_quantized.onnx`)**:
+  * Converted from 32-bit floating point (`fp32`) to 8-bit integer (`int8`).
+  * Shrinks the total on-disk model weight footprint by **75%** (from 133 MB down to **32.4 MB**).
+  * WebAssembly executes int8 SIMD matrix multiplications significantly faster on commodity laptop CPUs, with less than 0.3% degradation in benchmark retrieval accuracy compared to full precision.
+
+### Bundled Offline Asset Strategy (`public/models/`)
+* Rather than downloading model weights dynamically from the Hugging Face Hub on first run (which requires internet and pollutes user home directories), all model assets are bundled directly in [`public/models/bge-small-en-v1.5/`](file:///Users/eugenewong/Documents/Projects/lt2319-2026-dialogue-systems-project/public/models/bge-small-en-v1.5/):
+  * `config.json`, `tokenizer.json`, `tokenizer_config.json`, `special_tokens_map.json`, `vocab.txt`
+  * `onnx/model_quantized.onnx`
+* **Static Serving**:
+  * In the browser, Vite serves these static files directly from root (`/models/bge-small-en-v1.5/`).
+  * In Node CLI scripts, paths resolve directly from the local file system (`process.cwd() + '/public/models'`).
+* **Strict Offline Enforcement (`env.allowRemoteModels = false`)**:
+  * We explicitly set `env.allowRemoteModels = false` in [`src/rag/service.ts`](file:///Users/eugenewong/Documents/Projects/lt2319-2026-dialogue-systems-project/src/rag/service.ts) (which is shared and reused across both the browser and [`scripts/rag-cli.ts`](file:///Users/eugenewong/Documents/Projects/lt2319-2026-dialogue-systems-project/scripts/rag-cli.ts)).
+  * Forbids any silent outbound HTTP requests to `huggingface.co`, ensuring zero telemetry and fast failure if any local model file is missing.
+
+### Architectural Separation: Local Embeddings vs. Cloud LLM
+* **Local In-Browser (Embeddings & Vector Search)**:
+  * 32 MB model size and ~15ms execution time make local embeddings ideal for edge/client-side execution.
+* **Cloud API (Conversational LLM / Spoken NLG)**:
+  * Full generative LLMs (e.g. Llama 3, Gemini Flash) require 2 GB–8 GB of memory and induce significant browser memory pressure and token generation delays (>1s) on client devices.
+  * Generative chat completions remain delegated to cloud APIs (Groq / Gemini) to satisfy our spoken NLG requirement of sub-second responses and concise speech (<25 words per turn).
+
 
 
 

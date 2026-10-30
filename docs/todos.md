@@ -74,9 +74,9 @@ flowchart TD
 
 ## Phase 6: Culinary Knowledge RAG (Qdrant)
 
-- [ ] Curate markdown knowledge corpus (substitutions, cooking techniques, food safety temperatures)
-- [ ] Ingest documents into Qdrant collection using `pnpm rag:cli`
-- [ ] Build dialogue-state-aware retrieval service (incorporating active recipe context into queries)
+- [x] Curate markdown knowledge corpus (substitutions, cooking techniques, food safety temperatures)
+- [x] Ingest documents into Qdrant collection using `pnpm rag:cli`
+- [x] Build dialogue-state-aware retrieval service (incorporating active recipe context into queries)
 
 ---
 
