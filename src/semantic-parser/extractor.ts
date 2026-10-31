@@ -1,15 +1,17 @@
 import type OpenAI from 'openai';
 import prompts from '../prompts';
-import { SEMANTIC_PARSER_TEMPERATURE } from './constants';
-import type { SemanticParseResult } from './types';
+import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
+import type { DialogueAct, SemanticParseResult } from './types';
 
-/**
- * options for semantic extraction specifying the LLM client and model identifier.
- */
+// options for semantic extraction specifying the LLM client and model identifier
 export interface ExtractorOptions {
   client: OpenAI;
   model: string;
 }
+
+// runtime type guard validating whether a value matches a supported `DialogueAct`
+export const isDialogueAct = (act: unknown): act is DialogueAct =>
+  typeof act === 'string' && (DIALOGUE_ACTS as readonly string[]).includes(act);
 
 /**
  * extracts structured dialogue act and entities from recognized speech using Groq.
@@ -36,9 +38,13 @@ export const extractDialogueActAndEntities = async (
     });
 
     const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    const act = isDialogueAct(parsed.act) ? parsed.act : 'UNKNOWN';
+    const entities =
+      typeof parsed.entities === 'object' && parsed.entities !== null ? parsed.entities : undefined;
+
     return {
-      act: parsed.act || 'UNKNOWN',
-      entities: parsed.entities,
+      act,
+      entities,
       utterance: trimmed,
     };
   } catch (error) {

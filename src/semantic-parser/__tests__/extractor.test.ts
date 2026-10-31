@@ -91,4 +91,58 @@ describe('extractDialogueActAndEntities', () => {
 
     expect(result.act).toBe('UNKNOWN');
   });
+
+  it('falls back to UNKNOWN when LLM returns an unsupported dialogue act string', async () => {
+    const mockCreate = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              act: 'ORDER_PIZZA_UNSUPPORTED',
+              entities: { ingredient: 'cheese' },
+            }),
+          },
+        },
+      ],
+    });
+
+    const mockClient = {
+      chat: { completions: { create: mockCreate } },
+    } as unknown as OpenAI;
+
+    const result = await extractDialogueActAndEntities('Order me a pizza', {
+      client: mockClient,
+      model: 'openai/gpt-oss-20b',
+    });
+
+    expect(result.act).toBe('UNKNOWN');
+    expect(result.entities?.ingredient).toBe('cheese');
+  });
+
+  it('safely handles non-object entities payload', async () => {
+    const mockCreate = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              act: 'NEXT_STEP',
+              entities: 'none',
+            }),
+          },
+        },
+      ],
+    });
+
+    const mockClient = {
+      chat: { completions: { create: mockCreate } },
+    } as unknown as OpenAI;
+
+    const result = await extractDialogueActAndEntities('Next step please', {
+      client: mockClient,
+      model: 'openai/gpt-oss-20b',
+    });
+
+    expect(result.act).toBe('NEXT_STEP');
+    expect(result.entities).toBeUndefined();
+  });
 });

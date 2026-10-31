@@ -23,9 +23,7 @@ export interface Entities {
   queryType?: 'quantity' | 'presence' | 'list' | 'method';
 }
 
-/**
- * structured result returned by the semantic extractor after parsing recognized speech.
- */
+// structured result returned by the semantic extractor after parsing recognized speech
 export interface SemanticParseResult {
   act: DialogueAct;
   entities?: Entities;
@@ -33,9 +31,7 @@ export interface SemanticParseResult {
   utterance: string;
 }
 
-/**
- * dialogue act event sent directly to the XState dialogue manager.
- */
+// dialogue act event sent directly to the XState dialogue manager
 export type DialogueActEvent = {
   type: DialogueAct;
 } & Entities;
