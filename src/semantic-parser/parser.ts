@@ -4,9 +4,9 @@ import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
 import type { DialogueAct, SemanticParseResult } from './types';
 
 /**
- * options for semantic extraction specifying the LLM client and model identifier
+ * options for semantic parsing specifying the LLM client and model identifier
  */
-export interface ExtractorOptions {
+export interface ParserOptions {
   client: OpenAI;
   model: string;
 }
@@ -18,12 +18,12 @@ export const isDialogueAct = (act: unknown): act is DialogueAct =>
   typeof act === 'string' && (DIALOGUE_ACTS as readonly string[]).includes(act);
 
 /**
- * extracts structured dialogue act and entities from recognized speech using Groq.
+ * parses structured dialogue act and entities from recognized speech using Groq.
  * parses JSON directly with graceful fallback to `UNKNOWN` on error or empty input.
  */
-export const extractDialogueActAndEntities = async (
+export const parseUtterance = async (
   utterance: string,
-  options: ExtractorOptions,
+  options: ParserOptions,
 ): Promise<SemanticParseResult> => {
   const trimmed = utterance.trim();
   if (!trimmed) {
@@ -52,7 +52,7 @@ export const extractDialogueActAndEntities = async (
       utterance: trimmed,
     };
   } catch (error) {
-    console.error('[SemanticParser] Extraction error:', error);
+    console.error('[SemanticParser] Parse error:', error);
     return { act: 'UNKNOWN', utterance: trimmed };
   }
 };
