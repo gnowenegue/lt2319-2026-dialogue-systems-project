@@ -3,13 +3,17 @@ import prompts from '../prompts';
 import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
 import type { DialogueAct, SemanticParseResult } from './types';
 
-// options for semantic extraction specifying the LLM client and model identifier
+/**
+ * options for semantic extraction specifying the LLM client and model identifier
+ */
 export interface ExtractorOptions {
   client: OpenAI;
   model: string;
 }
 
-// runtime type guard validating whether a value matches a supported `DialogueAct`
+/**
+ * runtime type guard validating whether a value matches a supported `DialogueAct`
+ */
 export const isDialogueAct = (act: unknown): act is DialogueAct =>
   typeof act === 'string' && (DIALOGUE_ACTS as readonly string[]).includes(act);
 
