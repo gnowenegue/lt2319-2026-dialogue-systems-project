@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
+/**
+ * structured text chunk enriched with category, topic, and file source metadata
+ */
 export interface ChunkWithMetadata {
   text: string;
   metadata: {

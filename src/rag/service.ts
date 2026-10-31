@@ -22,7 +22,9 @@ env.allowRemoteModels = false;
 const qdrantUrl = import.meta.env?.VITE_QDRANT_URL || DEFAULT_QDRANT_URL;
 const qdrantPort = Number(import.meta.env?.VITE_QDRANT_PORT) || DEFAULT_QDRANT_PORT;
 
-// shared Qdrant client instance for browser and CLI usage
+/**
+ * shared Qdrant client instance for browser and CLI usage
+ */
 export const qdrantClient = new QdrantClient({
   url: qdrantUrl,
   port: qdrantPort,
@@ -40,18 +42,25 @@ const getExtractor = (): Promise<FeatureExtractionPipeline> => {
   return extractorPromise;
 };
 
-// pre-warms the embedding pipeline in the background to eliminate cold-start latency
+/**
+ * pre-warms the embedding pipeline in the background to eliminate cold-start latency
+ */
 const preloadModel = async (): Promise<void> => {
   await getExtractor();
 };
 
+/**
+ * computes normalized mean-pooled dense vector embeddings for input query text
+ */
 const embedQuery = async (text: string): Promise<number[]> => {
   const extractor = await getExtractor();
   const output = await extractor(text, { pooling: 'mean', normalize: true });
   return Array.from(output.data as Float32Array);
 };
 
-// builds an optional Qdrant payload filter for the requested `category`
+/**
+ * builds an optional Qdrant payload filter for the requested `category`
+ */
 const buildCategoryFilter = (category?: RagCategory) => {
   if (!category) {
     return undefined;
@@ -67,7 +76,9 @@ const buildCategoryFilter = (category?: RagCategory) => {
   };
 };
 
-// queries the Qdrant `culinary_knowledge` collection for advice
+/**
+ * queries the Qdrant `culinary_knowledge` collection for advice
+ */
 const queryCulinaryKnowledge = async (
   query: string,
   options?: RagQueryOptions,
