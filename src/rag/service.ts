@@ -22,8 +22,8 @@ env.allowRemoteModels = false;
 const qdrantUrl = import.meta.env?.VITE_QDRANT_URL || DEFAULT_QDRANT_URL;
 const qdrantPort = Number(import.meta.env?.VITE_QDRANT_PORT) || DEFAULT_QDRANT_PORT;
 
-// initialize Qdrant client
-const qdrantClient = new QdrantClient({
+// shared Qdrant client instance for browser and CLI usage
+export const qdrantClient = new QdrantClient({
   url: qdrantUrl,
   port: qdrantPort,
   checkCompatibility: false,
@@ -99,4 +99,4 @@ const queryCulinaryKnowledge = async (
     : `No matching culinary advice found for "${trimmed}".`;
 };
 
-export { embedQuery, preloadModel, queryCulinaryKnowledge };
+export { buildCategoryFilter, embedQuery, preloadModel, queryCulinaryKnowledge };

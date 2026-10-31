@@ -2,23 +2,15 @@
 
 import { readdir, stat } from 'node:fs/promises';
 import * as path from 'node:path';
-import { QdrantClient } from '@qdrant/js-client-rest';
 import { Command } from 'commander';
 import { v4 as uuidv4 } from 'uuid';
 import {
   CULINARY_COLLECTION,
-  DEFAULT_QDRANT_PORT,
-  DEFAULT_QDRANT_URL,
+  qdrantClient as client,
   EMBEDDING_DIMENSIONS,
   embedQuery,
 } from '../src/rag';
 import { makeChunksFromFile } from './chunker';
-
-const client = new QdrantClient({
-  url: process.env.VITE_QDRANT_URL || DEFAULT_QDRANT_URL,
-  port: Number(process.env.VITE_QDRANT_PORT) || DEFAULT_QDRANT_PORT,
-  checkCompatibility: false,
-});
 
 const program = new Command();
 program.name('rag-cli').description('Qdrant CLI for Ingestion & Querying').version('1.0.0');

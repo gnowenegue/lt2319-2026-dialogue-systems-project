@@ -21,10 +21,6 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-const queryQdrant = async (_collection: string, query: string): Promise<string> => {
-  return queryCulinaryKnowledge(query);
-};
-
 const getChatCompletions = async (messages: Message[]) => {
   const completion = await openai.chat.completions.create({
     messages,
@@ -39,4 +35,4 @@ const getChatCompletions = async (messages: Message[]) => {
   return output;
 };
 
-export { getChatCompletions, openai, queryCulinaryKnowledge, queryQdrant };
+export { getChatCompletions, openai, queryCulinaryKnowledge };

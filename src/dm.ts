@@ -4,7 +4,7 @@ import { assign, createActor, fromPromise, setup } from 'xstate';
 import { settings } from './configs';
 import { NO_INPUT_THRESHOLD, ROLES } from './constants';
 import prompts from './prompts';
-import { getChatCompletions, queryQdrant } from './services';
+import { getChatCompletions, queryCulinaryKnowledge } from './services';
 import type { DMContext, DMEvents, Message } from './types';
 
 /* backup: Azure access via FLoV proxy
@@ -27,7 +27,7 @@ const getChatCompletionsLogic = fromPromise(
 
 const queryRagLogic = fromPromise(async ({ input }: { input: { query: string } }) => {
   try {
-    return await queryQdrant('ServiceAndSupport', input.query);
+    return await queryCulinaryKnowledge(input.query);
   } catch (error) {
     console.error('RAG error:', error);
     throw error;
