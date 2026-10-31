@@ -45,7 +45,9 @@ export interface MealDBSummary {
   strMealThumb: string | null;
 }
 
-// top-level wrapper object returned by TheMealDB filter endpoints (e.g. `filter.php?c=Pasta`)
+/**
+ * top-level wrapper object returned by TheMealDB filter endpoints (e.g. `filter.php?c=Pasta`).
+ */
 export interface MealDBFilterResponse {
   meals: MealDBSummary[] | null;
 }
@@ -61,7 +63,10 @@ export interface MealDBFilterResponse {
 export interface RecipeIngredient {
   name: string;
   measure: string;
-  text: string; // full ingredient description, e.g. "1 pound penne rigate"
+  /**
+   * full ingredient description, e.g. "1 pound penne rigate"
+   */
+  text: string;
 }
 
 /**
@@ -69,10 +74,19 @@ export interface RecipeIngredient {
  * enriched with voice timer metadata in minutes for proactive dialogue manager alerts.
  */
 export interface RecipeStep {
-  stepNumber: number; // 1-indexed step number (1, 2, 3...)
+  /**
+   * 1-indexed step number (1, 2, 3...)
+   */
+  stepNumber: number;
   instruction: string;
-  estimatedMinutes?: number; // detected cooking duration in minutes (e.g. 9 for "about 9 minutes")
-  ingredientsReferenced?: string[]; // names of recipe ingredients mentioned in this step
+  /**
+   * detected cooking duration in minutes (e.g. 9 for "about 9 minutes")
+   */
+  estimatedMinutes?: number;
+  /**
+   * names of recipe ingredients mentioned in this step
+   */
+  ingredientsReferenced?: string[];
 }
 
 /**

@@ -16,21 +16,27 @@ async function fetchFromMealDB<T>(endpoint: string): Promise<T> {
   }
 }
 
-// search meals by full or partial name (e.g. `searchMealsByName("Arrabiata")`)
+/**
+ * search meals by full or partial name (e.g. `searchMealsByName("Arrabiata")`)
+ */
 export async function searchMealsByName(name: string): Promise<MealDBMeal[]> {
   const encoded = encodeURIComponent(name.trim());
   const data = await fetchFromMealDB<MealDBResponse>(`search.php?s=${encoded}`);
   return data.meals ?? [];
 }
 
-// look up full meal details by ID (e.g. `getMealById("52771")`)
+/**
+ * look up full meal details by ID (e.g. `getMealById("52771")`)
+ */
 export async function getMealById(id: string): Promise<MealDBMeal | null> {
   const encoded = encodeURIComponent(id.trim());
   const data = await fetchFromMealDB<MealDBResponse>(`lookup.php?i=${encoded}`);
   return data.meals?.[0] ?? null;
 }
 
-// fetch a single random meal recipe
+/**
+ * fetch a single random meal recipe
+ */
 export async function getRandomMeal(): Promise<MealDBMeal | null> {
   const data = await fetchFromMealDB<MealDBResponse>('random.php');
   return data.meals?.[0] ?? null;
