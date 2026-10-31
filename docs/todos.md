@@ -66,9 +66,9 @@ flowchart TD
 
 ## Phase 5: Semantic Parsing & Spoken NLG
 
-- [ ] Few-shot dialogue act extractor (mapping recognized speech to structured intents & entities)
-- [ ] Dialogue action router (recipe state vs. RAG vs. timer actions)
-- [ ] Spoken NLG prompt generator producing concise, natural responses (<25 words)
+- [x] Few-shot dialogue act extractor (mapping recognized speech to structured intents & entities)
+- [x] Dialogue action router (recipe state vs. RAG vs. timer actions)
+- [x] Spoken NLG prompt generator producing concise, natural responses (<25 words)
 
 ---
 
