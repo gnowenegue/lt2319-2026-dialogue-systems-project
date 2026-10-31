@@ -18,15 +18,10 @@ JSON Format:
   "act": "<ACT>",
   "entities": {
     "ingredient"?: string,
-    "candidateSubstitute"?: string,
     "stepNumber"?: number,
-    "minutes"?: number,
-    "seconds"?: number,
-    "timerLabel"?: string,
-    "technique"?: string,
-    "recipeQuery"?: string,
-    "selectionIndex"?: number,
-    "queryType"?: "quantity" | "presence" | "list" | "method"
+    "query"?: string,
+    "durationSeconds"?: number,
+    "timerLabel"?: string
   }
 }`,
 

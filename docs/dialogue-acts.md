@@ -40,8 +40,8 @@ Queries answered directly from the active recipe's structured data layer (zero R
 
 | Dialogue Act | Description | Example Spoken Utterances | Extracted Entities | Action Route |
 | :--- | :--- | :--- | :--- | :--- |
-| `QUERY_INGREDIENT` | Asks about ingredient quantity, units, or presence in the recipe. | *"How much garlic do I need?"*, *"Do we need butter?"*, *"What ingredients are in this?"* | `ingredient`, `queryType` (`quantity`, `presence`, `list`) | `RECIPE_QUERY` |
-| `QUERY_STEP_DETAIL` | Asks for clarification on specific parameters of the active step. | *"What temperature should the oven be?"*, *"Which pan should I use?"* | `queryType` (`method`) | `RECIPE_QUERY` |
+| `QUERY_INGREDIENT` | Asks about ingredient quantity, units, or presence in the recipe. | *"How much garlic do I need?"*, *"Do we need butter?"*, *"What ingredients are in this?"* | `ingredient` | `RECIPE_QUERY` |
+| `QUERY_STEP_DETAIL` | Asks for clarification on specific parameters of the active step. | *"What temperature should the oven be?"*, *"Which pan should I use?"* | `query` | `RECIPE_QUERY` |
 
 ---
 
@@ -51,8 +51,8 @@ Open-ended culinary inquiries routed to vector search against the curated knowle
 
 | Dialogue Act | Description | Example Spoken Utterances | Extracted Entities | Action Route |
 | :--- | :--- | :--- | :--- | :--- |
-| `INQUIRE_SUBSTITUTION` | Inquires about ingredient substitutes, swaps, or dietary alternatives. | *"Can I use oat milk instead of heavy cream?"*, *"What can I substitute for garlic?"*, *"Can I swap it?"* | `ingredient`, `candidateSubstitute` | `RAG_QUERY` (`substitutions`) |
-| `INQUIRE_TECHNIQUE` | Inquires about culinary techniques, cooking cues, definitions, or symptoms. | *"What does sauté mean?"*, *"Why isn't this browning?"*, *"How do I know when onions are translucent?"* | `technique` | `RAG_QUERY` (`techniques`) |
+| `INQUIRE_SUBSTITUTION` | Inquires about ingredient substitutes, swaps, or dietary alternatives. | *"Can I use oat milk instead of heavy cream?"*, *"What can I substitute for garlic?"*, *"Can I swap it?"* | `ingredient`, `query` | `RAG_QUERY` (`substitutions`) |
+| `INQUIRE_TECHNIQUE` | Inquires about culinary techniques, cooking cues, definitions, or symptoms. | *"What does sauté mean?"*, *"Why isn't this browning?"*, *"How do I know when onions are translucent?"* | `query` | `RAG_QUERY` (`techniques`) |
 
 ---
 
@@ -62,7 +62,7 @@ Timer commands enabling hands-free tracking of cooking durations.
 
 | Dialogue Act | Description | Example Spoken Utterances | Extracted Entities | Action Route |
 | :--- | :--- | :--- | :--- | :--- |
-| `SET_TIMER` | Starts a countdown timer for a specified or inferred duration. | *"Set a timer for 10 minutes"*, *"Timer 8 minutes and 30 seconds for the pasta"*, *"Set a timer"* | `minutes`, `seconds`, `timerLabel` | `TIMER_ACTION` |
+| `SET_TIMER` | Starts a countdown timer for a specified or inferred duration. | *"Set a timer for 10 minutes"*, *"Timer 8 minutes and 30 seconds for the pasta"*, *"Set a timer"* | `durationSeconds`, `timerLabel` | `TIMER_ACTION` |
 | `CHECK_TIMER` | Checks the remaining time on an active timer. | *"How much time is left?"*, *"Timer status"*, *"How long on the pasta?"* | `timerLabel` | `TIMER_ACTION` |
 | `CANCEL_TIMER` | Stops, cancels, or dismisses an active timer. | *"Cancel the timer"*, *"Stop the pasta timer"* | `timerLabel` | `TIMER_ACTION` |
 
@@ -74,8 +74,8 @@ Commands used during the initial recipe selection phase prior to cooking.
 
 | Dialogue Act | Description | Example Spoken Utterances | Extracted Entities | Action Route |
 | :--- | :--- | :--- | :--- | :--- |
-| `SEARCH_RECIPE` | Searches TheMealDB API by meal name, category, or ingredient. | *"Find an easy pasta recipe"*, *"Search for chicken curry"*, *"Something Italian"* | `recipeQuery` | `DISCOVERY_ACTION` |
-| `SELECT_RECIPE` | Selects a specific recipe candidate from presented options. | *"Let's make the second one"*, *"Choose Arrabiata"*, *"The first one"* | `selectionIndex`, `recipeQuery` | `DISCOVERY_ACTION` |
+| `SEARCH_RECIPE` | Searches TheMealDB API by meal name, category, or ingredient. | *"Find an easy pasta recipe"*, *"Search for chicken curry"*, *"Something Italian"* | `query` | `DISCOVERY_ACTION` |
+| `SELECT_RECIPE` | Selects a specific recipe candidate from presented options. | *"Let's make the second one"*, *"Choose Arrabiata"*, *"The first one"* | `stepNumber`, `query` | `DISCOVERY_ACTION` |
 
 ---
 
@@ -100,15 +100,10 @@ Entities are structured slots extracted from the user's speech to parameterize t
 | Entity Slot | TypeScript Type | Description | Example Values |
 | :--- | :--- | :--- | :--- |
 | `ingredient` | `string` | The primary food item or ingredient in question. | `"garlic"`, `"heavy cream"`, `"penne"` |
-| `candidateSubstitute` | `string` | The proposed replacement or substitute ingredient. | `"Greek yogurt"`, `"oat milk"`, `"butter"` |
-| `stepNumber` | `number` | 1-indexed target step in the active recipe. | `1`, `3`, `5` |
-| `minutes` | `number` | Duration in minutes for timer actions. | `5`, `10`, `45` |
-| `seconds` | `number` | Duration in seconds for timer actions. | `30`, `45` |
+| `stepNumber` | `number` | 1-indexed target step or selection index. | `1`, `3`, `5` |
+| `query` | `string` | Free-form search term, technique, or substitute candidate for RAG / API queries. | `"Arrabiata"`, `"sauté"`, `"oat milk"` |
+| `durationSeconds` | `number` | Normalized timer duration in seconds. | `30`, `600`, `2700` |
 | `timerLabel` | `string` | Human-readable label identifying the timer target. | `"pasta"`, `"sauce"`, `"oven"` |
-| `technique` | `string` | Cooking method, definition term, or visual cue. | `"sauté"`, `"al dente"`, `"browning"` |
-| `recipeQuery` | `string` | Keyword, cuisine, or ingredient for recipe search. | `"Arrabiata"`, `"Italian"`, `"chicken"` |
-| `selectionIndex` | `number` | 1-indexed position of a recipe candidate. | `1`, `2`, `3` |
-| `queryType` | `'quantity' \| 'presence' \| 'list' \| 'method'` | Sub-type categorization of recipe state inquiries. | `'quantity'`, `'list'` |
 
 ---
 
