@@ -233,6 +233,9 @@ dmActor.subscribe((state) => {
   console.groupEnd();
 });
 
+/**
+ * binds the interactive button to the dialogue manager actor and updates its label with speech state
+ */
 export function setupButton(element: HTMLButtonElement) {
   const clickHandler = () => {
     dmActor.send({ type: 'CLICK' });
