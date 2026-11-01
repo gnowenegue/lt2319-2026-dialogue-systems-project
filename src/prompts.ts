@@ -1,6 +1,9 @@
 import { MAX_SPOKEN_WORDS } from './constants';
 import { DIALOGUE_ACTS } from './semantic-parser/constants';
 
+// shared rules for concise, voice-safe responses for Azure Neural TTS delivery
+const SPOKEN_RESPONSE_RULES = `Answer in 1-2 plain sentences strictly under ${MAX_SPOKEN_WORDS} words. No markdown, lists, or filler. Never guess cooking times, temperatures, measurements, or food safety advice—if uncertain, say so simply.`;
+
 /**
  * centralized prompt registry for the Interactive Cooking Copilot.
  * contains system instructions for semantic parsing, RAG response synthesis, and conversation handling.
@@ -10,70 +13,80 @@ export default {
    * system prompt for Groq/LLM semantic extraction.
    * dynamically lists all valid dialogue acts derived from `DIALOGUE_ACTS`.
    */
-  semanticParser: `Extract dialogue act and entities from cooking speech. Output JSON only.
+  semanticParser: `Extract dialogue act and entities from cooking speech. Output JSON matching the schema.
 
 Acts: ${DIALOGUE_ACTS.join(', ')}
 
-JSON Format:
+Schema:
 {
-  "act": "<ACT>",
+  "act": "<one of Acts>",
   "entities": {
-    "ingredient"?: string,
-    "stepNumber"?: number,
-    "query"?: string,
-    "durationSeconds"?: number,
-    "timerLabel"?: string
+    "ingredient": "string (food name, e.g. 'butter')",
+    "stepNumber": "number (positive integer, e.g. 3)",
+    "query": "string (recipe search term or technique query)",
+    "durationSeconds": "number (total duration in seconds, e.g. 5 minutes = 300)",
+    "timerLabel": "string (timer name if mentioned, e.g. 'pasta')"
   }
-}`,
+}
+
+Rules:
+- Omit entities or unused entity keys if not mentioned.
+- Only select acts from the Acts list; if unclear, use "UNKNOWN".
+- Never infer or assume entities not explicitly spoken.
+- Convert timer durations to integer seconds (never minutes or text).`,
 
   /**
    * default conversational system prompt for general cooking assistance.
    */
-  systemDefault:
-    'You are a helpful culinary friend here to assist with cooking. Keep your responses short and friendly! Do not use markdown, formatting, or bullet points, just clean conversational text.',
+  systemDefault: `You are a culinary assistant helping a cook. ${SPOKEN_RESPONSE_RULES}`,
 
   /**
    * spoken RAG synthesis prompt for answering culinary knowledge questions.
-   * explicitly instructs the LLM to stay under 25 words and avoid markdown for Azure Neural TTS.
    */
-  systemRAG: `Use the following context to answer the cook's question accurately. Keep your response conversational and strictly under ${MAX_SPOKEN_WORDS} words so it is easy to hear while cooking. Do not use markdown, bullet points, or lists. If the context does not contain the answer, say so simply.`,
+  systemRAG: `Answer the cook's question using only the provided context. ${SPOKEN_RESPONSE_RULES}`,
 
   /**
    * system prompt for Groq/LLM recipe refinement and voice optimization.
    * reconciles ingredient aliases/omissions and cleans steps for natural speech.
    */
-  recipeRefinement: `You are a culinary data refiner for a voice-guided cooking assistant.
-Given a recipe title, ingredients list, and instruction text from an unmoderated API:
+  recipeRefinement: `Refine and normalize recipe JSON for spoken step-by-step cooking. Output JSON matching the schema.
 
-1. RECONCILE INGREDIENTS:
-   - Identify discrepancies between listed ingredients and steps.
-   - If an ingredient uses an alias or substitute in steps (e.g. listed as 'Bacon' but step says 'pancetta'), combine them in the ingredient name (e.g. "Pancetta (or bacon)").
-   - If an ingredient is used in steps but missing from the list (e.g. rhubarb, butter for greasing, water, salt), add it to ingredients with measure "to taste" or "as needed".
-   - Keep each ingredient description in 'text' (e.g. "100g Pancetta (or bacon)").
-
-2. CLEAN & OPTIMIZE STEPS FOR VOICE (TTS):
-   - Fix all typos and grammatical errors (e.g. "cut in to a slices" -> "cut into slices").
-   - Expand slashes and culinary units for natural speech (e.g. "apples/rhubarb" -> "apples or rhubarb", "100g" -> "100 grams", "1 tbsp" -> "1 tablespoon").
-   - Ensure steps refer to ingredients using the reconciled names.
-   - Maintain sentence-level action granularity (keep each step atomic and under 25 words).
-   - Detect estimated cooking durations in minutes if mentioned.
-
-Output JSON only matching this schema:
+Schema:
 {
   "ingredients": [
-    { "name": string, "measure": string, "text": string }
+    { "name": "string", "measure": "string", "text": "string" }
   ],
   "steps": [
-    { "stepNumber": number, "instruction": string, "estimatedMinutes"?: number }
+    { "stepNumber": 1, "instruction": "string", "estimatedMinutes": 5 }
   ]
-}`,
+}
 
-  defaultGreeting: 'Hello! What would you like to cook today?',
-  cannotHear: "Sorry, I can't hear you!",
+Rules:
+1. INGREDIENTS:
+- Reconcile aliases between ingredients and steps (e.g. listed 'Bacon', step says 'pancetta' -> "Pancetta (or bacon)").
+- Add missing staple ingredients mentioned in steps (e.g. water, salt, butter for greasing) with measure "to taste" or "as needed".
+- Set 'text' to the full spoken description (e.g. "100 grams pancetta (or bacon)").
+- Never invent ingredients not referenced in the recipe.
+
+2. STEPS:
+- Expand abbreviations, units, fractions, and temperatures for speech:
+  * "100g" -> "100 grams", "1 tbsp" -> "1 tablespoon", "1/2" -> "half a", "2 tsp" -> "2 teaspoons".
+  * "180°C" -> "180 degrees Celsius", "375°F" -> "375 degrees Fahrenheit".
+  * "apples/rhubarb" -> "apples or rhubarb".
+- Remove author commentary, URLs, emojis, and parentheticals.
+- Split compound sentences into atomic single-action steps under 25 words each.
+- Renumber steps sequentially starting from 1.
+- Omit 'estimatedMinutes' if no specific duration is mentioned in the step. Never guess cooking times.`,
+
+  /**
+   * initial spoken utterance prompting the user to specify a recipe to cook
+   */
+  promptRecipe: 'Hi! What would you like to cook today?',
+  cannotHear: "Sorry, I didn't catch that. Could you say that again?",
   noInput: [
-    "Sorry, I can't hear you!",
-    'Are you still there?',
-    'It seems like you are away. Please try again when you are back.',
+    "Sorry, I didn't catch that. Could you say that again?",
+    "Are you still there? Let me know when you're ready for the next step.",
+    "I'll pause for now. Tap the microphone when you're ready to continue.",
   ],
   llmError: "Sorry, I'm having trouble thinking right now. Please try again in a moment.",
 } as const;
