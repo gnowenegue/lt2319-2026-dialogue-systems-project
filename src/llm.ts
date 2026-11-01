@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import {
   DEFAULT_GROQ_BASE_URL,
   DEFAULT_GROQ_MODEL,
+  DEFAULT_GROQ_REFINER_MODEL,
   LLM_MODEL,
 } from './constants';
 
@@ -36,6 +37,15 @@ export const ACTIVE_LLM_MODEL = groqApiKey
   ? import.meta.env?.VITE_GROQ_MODEL ||
     (typeof process !== 'undefined' ? process.env?.VITE_GROQ_MODEL : undefined) ||
     DEFAULT_GROQ_MODEL
+  : LLM_MODEL;
+
+/**
+ * dedicated LLM model identifier for structured recipe refinement and voice optimization
+ */
+export const ACTIVE_REFINER_MODEL = groqApiKey
+  ? import.meta.env?.VITE_GROQ_REFINER_MODEL ||
+    (typeof process !== 'undefined' ? process.env?.VITE_GROQ_REFINER_MODEL : undefined) ||
+    DEFAULT_GROQ_REFINER_MODEL
   : LLM_MODEL;
 
 /**

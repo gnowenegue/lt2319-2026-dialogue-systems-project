@@ -1,5 +1,5 @@
 import type OpenAI from 'openai';
-import { ACTIVE_LLM_MODEL, openai } from '../llm';
+import { ACTIVE_REFINER_MODEL, openai } from '../llm';
 import prompts from '../prompts';
 import { REFINER_TEMPERATURE } from './constants';
 import { calculateTotalMinutes, normalizeMealDBRecipe } from './normalizer';
@@ -58,7 +58,7 @@ export async function refineRecipeWithLLM(
 ): Promise<NormalizedRecipe> {
   const base = normalizeMealDBRecipe(meal);
   const client = options.client ?? openai;
-  const model = options.model ?? ACTIVE_LLM_MODEL;
+  const model = options.model ?? ACTIVE_REFINER_MODEL;
 
   try {
     const completion = await client.chat.completions.create({
