@@ -1,4 +1,5 @@
-import { DIALOGUE_ACTS, MAX_SPOKEN_WORDS } from './semantic-parser/constants';
+import { MAX_SPOKEN_WORDS } from './constants';
+import { DIALOGUE_ACTS } from './semantic-parser/constants';
 
 /**
  * centralized prompt registry for the Interactive Cooking Copilot.

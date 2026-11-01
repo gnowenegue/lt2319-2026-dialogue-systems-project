@@ -1,10 +1,4 @@
 /**
- * maximum word count threshold for spoken dialogue utterances.
- * keeps responses concise (<25 words) to avoid cognitive overload while cooking.
- */
-export const MAX_SPOKEN_WORDS = 25 as const;
-
-/**
  * sampling temperature for LLM semantic parsing.
  * low value (0.1) enforces deterministic JSON structure and consistent intent classification.
  */
