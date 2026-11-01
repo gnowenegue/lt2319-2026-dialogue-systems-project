@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "rag:cli": "tsx scripts/rag-cli.ts",
     "rag:fetch": "tsx scripts/fetch-wikibooks.ts",
+    "test:prompts": "tsx --env-file=.env scripts/test-prompts.ts",
     "prepare": "husky"
   },
   "engines": {
