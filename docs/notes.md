@@ -29,6 +29,11 @@ This document records key design decisions, tradeoffs, and domain-specific consi
   - [Model Selection: BAAI/bge-small-en-v1.5 (Quantized ONNX)](#model-selection-baaibge-small-en-v15-quantized-onnx)
   - [Bundled Offline Asset Strategy (`public/models/`)](#bundled-offline-asset-strategy-publicmodels)
   - [Architectural Separation: Local Embeddings vs. Cloud LLM](#architectural-separation-local-embeddings-vs-cloud-llm)
+- [6. Two-Tier LLM Architecture for Voice Cooking (20B Speech Loop vs. 120B Recipe Ingestion)](#6-two-tier-llm-architecture-for-voice-cooking-20b-speech-loop-vs-120b-recipe-ingestion)
+  - [Context & The Spoken Latency Budget](#context--the-spoken-latency-budget)
+  - [The Problem: Flat Intent Extraction vs. Nested Document Synthesis](#the-problem-flat-intent-extraction-vs-nested-document-synthesis)
+  - [Decision: Decouple Turn-by-Turn Speech from One-Off Ingestion](#decision-decouple-turn-by-turn-speech-from-one-off-ingestion)
+  - [Implementation & Environment Configuration](#implementation--environment-configuration)
 
 ---
 
@@ -177,6 +182,42 @@ For example, in *Spicy Arrabiata Penne*, paragraph 2 contains:
 * **Cloud API (Conversational LLM / Spoken NLG)**:
   * Full generative LLMs (e.g. Llama 3, Gemini Flash) require 2 GB–8 GB of memory and induce significant browser memory pressure and token generation delays (>1s) on client devices.
   * Generative chat completions remain delegated to cloud APIs (Groq / Gemini) to satisfy our spoken NLG requirement of sub-second responses and concise speech (<25 words per turn).
+
+---
+
+## 6. Two-Tier LLM Architecture for Voice Cooking (20B Speech Loop vs. 120B Recipe Ingestion)
+
+### Context & The Spoken Latency Budget
+Voice interaction during physical cooking has tight latency bounds:
+* A home cook with hot pans or dirty hands perceives pauses longer than 800ms as an unresponsive or broken system.
+* The end-to-end voice loop consists of: `User Speech -> Azure STT -> LLM Processing -> Azure TTS -> Audio Playback`.
+* To keep the total interaction snappy, the cloud LLM processing window must complete in under 500ms.
+
+### The Problem: Flat Intent Extraction vs. Nested Document Synthesis
+The cooking copilot performs two fundamentally different LLM workloads:
+1. **Real-Time Turn Dialogue (`semanticParser`, `systemRAG`, `systemDefault`)**:
+   * Evaluated on every spoken user turn (10–30 turns per cooking session).
+   * Generates compact, flat outputs: dialogue acts (`NEXT_STEP`, `SET_TIMER`), simple entity slots (ingredient name, seconds), or 1–2 spoken sentences (<25 words).
+   * A 20B parameter model (`openai/gpt-oss-20b`) completes these turns reliably in 140ms–400ms on Groq LPUs.
+2. **Heavy Recipe Refinement (`recipeRefinement`)**:
+   * Transforms raw API recipe data (TheMealDB) into spoken-friendly structured data.
+   * Requires complex schema generation: reconciling ingredient discrepancies, detecting missing staples, expanding abbreviations for TTS, and splitting multi-action run-on sentences into atomic steps.
+   * Under Groq's constrained grammar decoding (`response_format: { type: 'json_object' }`), the 20B model failed with `400 json_validate_failed` because its attention weights defaulted to conversational lead-ins or markdown fences on long nested array structures.
+   * Conversely, a 120B model (`openai/gpt-oss-120b`) possesses the instruction-following fidelity to emit valid nested JSON without grammar violations.
+
+### Decision: Decouple Turn-by-Turn Speech from One-Off Ingestion
+Rather than forcing a single model across both disparate tasks:
+* **Real-time Voice Turns**: Bound to `VITE_GROQ_MODEL=openai/gpt-oss-20b` (or local `llama3.2:latest`). Prioritizes ultra-low latency (sub-400ms) and minimal token consumption against rate-limit quotas.
+* **Recipe Ingestion & Normalization**: Bound to `VITE_GROQ_REFINER_MODEL=openai/gpt-oss-120b`. Runs once when a recipe is selected; the ~5-second execution time is completely natural for a recipe hydration step and transparent to the user.
+
+### Implementation & Environment Configuration
+* **Environment Separation**:
+  * `VITE_GROQ_MODEL`: Controls conversational dialogue acts, chit-chat, and culinary RAG response synthesis.
+  * `VITE_GROQ_REFINER_MODEL`: Controls recipe normalization, ingredient reconciliation, and TTS step cleaning.
+* **Zero Runtime Overhead**:
+  * [`src/llm.ts`](../src/llm.ts) exports `ACTIVE_LLM_MODEL` and `ACTIVE_REFINER_MODEL`, defaulting to their respective constants with safe fallback to local Ollama if offline.
+  * [`src/recipes/refiner.ts`](../src/recipes/refiner.ts) routes directly to `ACTIVE_REFINER_MODEL`.
+
 
 
 
