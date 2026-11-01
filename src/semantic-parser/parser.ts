@@ -1,14 +1,15 @@
 import type OpenAI from 'openai';
 import prompts from '../prompts';
+import { ACTIVE_LLM_MODEL, openai } from '../services';
 import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
 import type { DialogueAct, SemanticParseResult } from './types';
 
 /**
- * options for semantic parsing specifying the LLM client and model identifier
+ * options for semantic parsing specifying an optional LLM client and model identifier
  */
 export interface ParserOptions {
-  client: OpenAI;
-  model: string;
+  client?: OpenAI;
+  model?: string;
 }
 
 /**
@@ -23,16 +24,19 @@ export const isDialogueAct = (act: unknown): act is DialogueAct =>
  */
 export const parseUtterance = async (
   utterance: string,
-  options: ParserOptions,
+  options: ParserOptions = {},
 ): Promise<SemanticParseResult> => {
   const trimmed = utterance.trim();
   if (!trimmed) {
     return { act: 'UNKNOWN', utterance: '' };
   }
 
+  const client = options.client ?? openai;
+  const model = options.model ?? ACTIVE_LLM_MODEL;
+
   try {
-    const completion = await options.client.chat.completions.create({
-      model: options.model,
+    const completion = await client.chat.completions.create({
+      model,
       messages: [
         { role: 'system', content: prompts.semanticParser },
         { role: 'user', content: trimmed },

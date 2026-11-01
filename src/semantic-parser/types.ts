@@ -24,6 +24,5 @@ export interface Entities {
 export interface SemanticParseResult {
   act: DialogueAct;
   entities?: Entities;
-  confidence?: number;
   utterance: string;
 }
