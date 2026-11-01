@@ -19,8 +19,15 @@ if (typeof window === 'undefined' && typeof process !== 'undefined' && process.c
 }
 env.allowRemoteModels = false;
 
-const qdrantUrl = import.meta.env?.VITE_QDRANT_URL || DEFAULT_QDRANT_URL;
-const qdrantPort = Number(import.meta.env?.VITE_QDRANT_PORT) || DEFAULT_QDRANT_PORT;
+const qdrantUrl =
+  import.meta.env?.VITE_QDRANT_URL ||
+  (typeof process !== 'undefined' ? process.env?.VITE_QDRANT_URL : undefined) ||
+  DEFAULT_QDRANT_URL;
+const qdrantPort =
+  Number(
+    import.meta.env?.VITE_QDRANT_PORT ||
+      (typeof process !== 'undefined' ? process.env?.VITE_QDRANT_PORT : undefined),
+  ) || DEFAULT_QDRANT_PORT;
 
 /**
  * shared Qdrant client instance for browser and CLI usage
