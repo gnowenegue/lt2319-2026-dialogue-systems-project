@@ -1,6 +1,6 @@
 import type OpenAI from 'openai';
+import { ACTIVE_LLM_MODEL, openai } from '../llm';
 import prompts from '../prompts';
-import { ACTIVE_LLM_MODEL, openai } from '../services';
 import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
 import type { DialogueAct, SemanticParseResult } from './types';
 

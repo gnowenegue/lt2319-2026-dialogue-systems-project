@@ -1,7 +1,6 @@
 import type OpenAI from 'openai';
-
+import { ACTIVE_LLM_MODEL, openai } from '../llm';
 import prompts from '../prompts';
-import { ACTIVE_LLM_MODEL, openai } from '../services';
 import { REFINER_TEMPERATURE } from './constants';
 import { calculateTotalMinutes, normalizeMealDBRecipe } from './normalizer';
 import type { MealDBMeal, NormalizedRecipe, RecipeIngredient, RecipeStep } from './types';
