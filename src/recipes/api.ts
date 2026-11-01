@@ -103,8 +103,3 @@ export async function getRefinedRecipe(
   refinedRecipeCache.set(normalizedId, refined);
   return refined;
 }
-
-/** @deprecated use `clearRefinedRecipeCache` instead */
-export const clearHydratedRecipeCache = clearRefinedRecipeCache;
-/** @deprecated use `getRefinedRecipe` instead */
-export const getHydratedRecipe = getRefinedRecipe;
