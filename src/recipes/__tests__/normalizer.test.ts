@@ -120,9 +120,6 @@ describe('Recipe Normalizer', () => {
 
       expect(recipe.id).toBe('52771');
       expect(recipe.title).toBe('Spicy Arrabiata Penne');
-      expect(recipe.category).toBe('Vegetarian');
-      expect(recipe.area).toBe('Italian');
-      expect(recipe.tags).toEqual(['Pasta', 'Curry']);
       expect(recipe.ingredients).toHaveLength(1);
       expect(recipe.steps).toHaveLength(3);
       expect(recipe.totalEstimatedMinutes).toBe(11); // sums 9 minutes from step 1 and 2 minutes from step 2

@@ -47,36 +47,25 @@ export function extractSteps(instructions: string): RecipeStep[] {
 }
 
 /**
+ * calculates the sum of estimated cooking minutes across recipe steps
+ */
+export function calculateTotalMinutes(steps: RecipeStep[]): number | undefined {
+  const total = steps.reduce((sum, step) => sum + (step.estimatedMinutes ?? 0), 0);
+  return total > 0 ? total : undefined;
+}
+
+/**
  * normalize a raw TheMealDB meal record into a clean, structured recipe for the dialogue session
  */
 export function normalizeMealDBRecipe(meal: MealDBMeal): NormalizedRecipe {
   const ingredients = extractIngredients(meal);
   const steps = extractSteps(meal.strInstructions || '');
 
-  const tags = meal.strTags
-    ? meal.strTags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean)
-    : [];
-
-  const totalEstimatedMinutes = steps.reduce(
-    (total, step) => total + (step.estimatedMinutes ?? 0),
-    0,
-  );
-
   return {
     id: meal.idMeal,
     title: meal.strMeal,
-    category: meal.strCategory,
-    area: meal.strArea,
-    instructionsRaw: meal.strInstructions,
-    thumbnail: meal.strMealThumb ?? null,
-    tags,
-    sourceUrl: meal.strSource ?? null,
-    youtubeUrl: meal.strYoutube ?? null,
     ingredients,
     steps,
-    totalEstimatedMinutes: totalEstimatedMinutes > 0 ? totalEstimatedMinutes : undefined,
+    totalEstimatedMinutes: calculateTotalMinutes(steps),
   };
 }

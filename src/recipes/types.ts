@@ -71,7 +71,7 @@ export interface RecipeIngredient {
 
 /**
  * discrete, sequential cooking step extracted from TheMealDB raw instruction text.
- * enriched with voice timer metadata in minutes for proactive dialogue manager alerts.
+ * refined with voice timer metadata in minutes for proactive dialogue manager alerts.
  */
 export interface RecipeStep {
   /**
@@ -83,26 +83,15 @@ export interface RecipeStep {
    * detected cooking duration in minutes (e.g. 9 for "about 9 minutes")
    */
   estimatedMinutes?: number;
-  /**
-   * names of recipe ingredients mentioned in this step
-   */
-  ingredientsReferenced?: string[];
 }
 
 /**
- * fully normalized recipe object stored in our XState dialogue session context.
- * used across the dialogue manager, culinary RAG, and kitchen dashboard UI.
+ * normalized recipe object stored in our XState dialogue session context.
+ * used across the dialogue manager for ingredient prep and active cooking steps.
  */
 export interface NormalizedRecipe {
   id: string;
   title: string;
-  category: string;
-  area: string;
-  instructionsRaw: string;
-  thumbnail: string | null;
-  tags: string[];
-  sourceUrl: string | null;
-  youtubeUrl: string | null;
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   totalEstimatedMinutes?: number;
