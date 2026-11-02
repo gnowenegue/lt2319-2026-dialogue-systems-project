@@ -1,9 +1,12 @@
+import { speechstate } from 'speechstate';
 import { assign, fromPromise, setup } from 'xstate';
 
+import { settings } from '../configs';
 import { ROLES } from '../constants';
 import prompts from '../prompts';
 import { getRefinedRecipe, searchMealsByName } from '../recipes';
 import type { NormalizedRecipe } from '../recipes/types';
+import { parseUtterance } from '../semantic-parser';
 import {
   formatPrepBatchUtterance,
   formatStepUtterance,
@@ -21,10 +24,12 @@ export const fetchRecipeLogic = fromPromise(
     if (!meals || meals.length === 0) {
       throw new Error(`Recipe not found for "${input.query}"`);
     }
+
     const refined = await getRefinedRecipe(meals[0].idMeal);
     if (!refined) {
       throw new Error(`Failed to refine recipe "${meals[0].strMeal}"`);
     }
+
     return refined;
   },
 );
@@ -39,6 +44,14 @@ export const cookingMachine = setup({
     events: {} as CookingEvent,
   },
   actions: {
+    'spst.prepare': ({ context }) => {
+      // initialize `SpeechState` audio pipelines on user gesture
+      if (context.spstRef) {
+        context.spstRef.send({
+          type: 'PREPARE',
+        });
+      }
+    },
     'spst.speak': ({ context }, params: { utterance: string }) => {
       // notify SpeechState ASR/TTS actor if initialized
       if (context.spstRef) {
@@ -57,9 +70,47 @@ export const cookingMachine = setup({
         });
       }
     },
+    handleRecognised: async ({ self, event }) => {
+      if (event.type !== 'RECOGNISED') return;
+      const utterance = event.value[0]?.utterance?.trim();
+      if (!utterance) return;
+
+      const parsed = await parseUtterance(utterance);
+      switch (parsed.act) {
+        case 'SEARCH_RECIPE':
+          self.send({ type: 'SEARCH_RECIPE', query: parsed.entities?.query || utterance });
+          break;
+        case 'AFFIRM':
+          self.send({ type: 'AFFIRM' });
+          break;
+        case 'DENY':
+          self.send({ type: 'DENY' });
+          break;
+        case 'NEXT_STEP':
+          self.send({ type: 'NEXT_STEP' });
+          break;
+        case 'PREVIOUS_STEP':
+          self.send({ type: 'PREVIOUS_STEP' });
+          break;
+        case 'REPEAT_STEP':
+          self.send({ type: 'REPEAT_STEP' });
+          break;
+        case 'GOTO_STEP':
+          self.send({ type: 'GOTO_STEP', stepNumber: Number(parsed.entities?.stepNumber) || 1 });
+          break;
+        case 'QUERY_INGREDIENT':
+          self.send({ type: 'QUERY_INGREDIENT', ingredient: parsed.entities?.ingredient });
+          break;
+        default:
+          console.warn(
+            `[NLU] Unhandled dialogue act: "${parsed.act}" for utterance: "${utterance}"`,
+          );
+      }
+    },
   },
   actors: {
     fetchRecipeActor: fetchRecipeLogic,
+    speechstateActor: speechstate,
   },
   guards: {
     hasMorePrepBatches: ({ context }) =>
@@ -76,7 +127,7 @@ export const cookingMachine = setup({
 }).createMachine({
   id: 'CookingCopilot',
   initial: 'Idle',
-  context: {
+  context: ({ spawn }) => ({
     recipe: null,
     prepBatchIndex: 0,
     currentStepIndex: 0,
@@ -90,13 +141,25 @@ export const cookingMachine = setup({
     ],
     noInputCount: 0,
     errorMessage: null,
-    spstRef: null,
+    spstRef: spawn('speechstateActor', { input: settings }),
+  }),
+  on: {
+    RECOGNISED: {
+      actions: 'handleRecognised',
+    },
   },
   states: {
     Idle: {
       on: {
-        START: 'PromptRecipe',
-        CLICK: 'PromptRecipe',
+        START: 'Prepare',
+        CLICK: 'Prepare',
+      },
+    },
+
+    Prepare: {
+      entry: { type: 'spst.prepare' },
+      on: {
+        ASRTTS_READY: 'PromptRecipe',
       },
     },
 
@@ -114,6 +177,9 @@ export const cookingMachine = setup({
         },
       ],
       on: {
+        SPEAK_COMPLETE: {
+          actions: { type: 'spst.listen' },
+        },
         SEARCH_RECIPE: 'FetchingRecipe',
       },
     },
@@ -161,6 +227,9 @@ export const cookingMachine = setup({
         },
       ],
       on: {
+        SPEAK_COMPLETE: {
+          actions: { type: 'spst.listen' },
+        },
         AFFIRM: 'AnnouncePrepBatch',
         SKIP_PREP: 'AnnounceStep',
         DENY: 'PromptRecipe',

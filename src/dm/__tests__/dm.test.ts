@@ -1,5 +1,6 @@
+import type { speechstate } from 'speechstate';
 import { describe, expect, it } from 'vitest';
-import { createActor, fromPromise } from 'xstate';
+import { createActor, fromPromise, fromTransition } from 'xstate';
 
 import type { NormalizedRecipe } from '../../recipes/types';
 import { cookingMachine } from '../cooking-machine';
@@ -49,6 +50,7 @@ const createTestCookingActor = (recipe: NormalizedRecipe = mockArrabiataRecipe) 
   const machine = cookingMachine.provide({
     actors: {
       fetchRecipeActor: fromPromise(async () => recipe),
+      speechstateActor: fromTransition((state) => state, {}) as unknown as typeof speechstate,
     },
   });
   return createActor(machine).start();
@@ -62,6 +64,8 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
 
     // step 1: start interaction
     actor.send({ type: 'START' });
+    expect(actor.getSnapshot().value).toBe('Prepare');
+    actor.send({ type: 'ASRTTS_READY' });
     expect(actor.getSnapshot().value).toBe('PromptRecipe');
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
       'Hi! What would you like to cook today?',
@@ -151,6 +155,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     const actor = createTestCookingActor();
 
     actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
     actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -184,6 +189,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     const actor = createTestCookingActor();
 
     actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
     actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -201,6 +207,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     const actor = createTestCookingActor();
 
     actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
     actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
     await new Promise((resolve) => setTimeout(resolve, 0));
     actor.send({ type: 'SKIP_PREP' });
@@ -232,6 +239,20 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     // invalid step jump is guarded and ignored
     actor.send({ type: 'GOTO_STEP', stepNumber: 99 });
     expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+  });
+
+  it('prepares speechstate and advances to PromptRecipe upon ASRTTS_READY on user click', () => {
+    const actor = createTestCookingActor();
+    expect(actor.getSnapshot().value).toBe('Idle');
+
+    actor.send({ type: 'CLICK' });
+    expect(actor.getSnapshot().value).toBe('Prepare');
+
+    actor.send({ type: 'ASRTTS_READY' });
+    expect(actor.getSnapshot().value).toBe('PromptRecipe');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'Hi! What would you like to cook today?',
+    );
   });
 });
 

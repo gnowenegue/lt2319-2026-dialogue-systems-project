@@ -76,7 +76,7 @@ export type CookingEvent =
   | { type: 'QUERY_INGREDIENT'; ingredient?: string }
   | { type: 'SKIP_PREP' }
   | { type: 'SPEAK_COMPLETE' }
-  | { type: 'ASRTT_READY' }
+  | { type: 'ASRTTS_READY' }
   | { type: 'ASR_NOINPUT' }
   | { type: 'LISTEN_COMPLETE' }
   | { type: 'RECOGNISED'; value: Hypothesis[] }
