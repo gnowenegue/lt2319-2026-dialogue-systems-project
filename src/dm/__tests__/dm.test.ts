@@ -1,9 +1,10 @@
 import type { speechstate } from 'speechstate';
 import { describe, expect, it } from 'vitest';
 import { createActor, fromPromise, fromTransition } from 'xstate';
-
+import prompts from '../../prompts';
 import type { NormalizedRecipe } from '../../recipes/types';
 import { cookingMachine } from '../cooking-machine';
+import { buildDebugReport } from '../debug-report';
 import {
   formatCheckTimerUtterance,
   formatDurationForSpeech,
@@ -98,7 +99,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().value).toBe('WaitingForPrepConfirmation');
     expect(actor.getSnapshot().context.prepBatchIndex).toBe(1);
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      'Next: 3 cloves garlic, and 1/2 tsp red chile flakes.',
+      'Next: 3 cloves garlic, and 1/2 tsp red chile flakes. Got those?',
     );
 
     // step 5: confirm batch 2 -> advance to Batch 3 (items 5-6)
@@ -106,7 +107,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().value).toBe('WaitingForPrepConfirmation');
     expect(actor.getSnapshot().context.prepBatchIndex).toBe(2);
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      'Next: 1 tin chopped tomatoes, and 1/2 tsp Italian seasoning.',
+      'Next: 1 tin chopped tomatoes, and 1/2 tsp Italian seasoning. Got those?',
     );
 
     // step 6: confirm batch 3 -> advance to Batch 4 (final items 7-8)
@@ -122,7 +123,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
     expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      "Step 1: Bring a large pot of salted water to a boil. Say 'next' when done.",
+      "Step 1: Bring a large pot of salted water to a boil. Let me know when you're ready.",
     );
 
     // step 8: advance to Step 2
@@ -130,7 +131,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
     expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      'Step 2: Heat olive oil in a large skillet over medium heat and add garlic.',
+      "Step 2: Heat olive oil in a large skillet over medium heat and add garlic. Let me know when you're ready.",
     );
 
     // step 9: advance to Step 3
@@ -138,7 +139,7 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
     expect(actor.getSnapshot().context.currentStepIndex).toBe(2);
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      'Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes.',
+      "Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes. Let me know when you're ready.",
     );
 
     // step 10: advance from Step 4 (last step) -> completes recipe
@@ -199,6 +200,46 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
 
     // cook says: "I already have everything ready"
     actor.send({ type: 'SKIP_PREP' });
+
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain('Step 1: Bring a large pot');
+  });
+
+  it('advances to next step when cook acknowledges with AFFIRM (e.g. "Alright", "Got it")', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    actor.send({ type: 'SKIP_PREP' });
+
+    // currently on step 1 (index 0)
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
+
+    // cook says: "Alright" / "Got it" -> maps to AFFIRM
+    actor.send({ type: 'AFFIRM' });
+
+    // advances to step 2 (index 1)
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain('Step 2: Heat olive oil');
+  });
+
+  it('supports advancing to step 1 on NEXT_STEP when cook says done with ingredients in ConfirmRecipe', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(actor.getSnapshot().value).toBe('ConfirmRecipe');
+
+    // cook says: "I'm done with the ingredients" -> maps to NEXT_STEP
+    actor.send({ type: 'NEXT_STEP' });
 
     expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
     expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
@@ -337,7 +378,7 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
 
     // batch 1: intermediate next
     const batch1 = formatPrepBatchUtterance(ingredients, 1, 2);
-    expect(batch1).toBe('Next: 3 cloves garlic, and 1/2 tsp red chile flakes.');
+    expect(batch1).toBe('Next: 3 cloves garlic, and 1/2 tsp red chile flakes. Got those?');
     expect(hasMorePrepBatches(ingredients, 1, 2)).toBe(true);
 
     // batch 3: final lastly
@@ -348,19 +389,21 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
     expect(hasMorePrepBatches(ingredients, 3, 2)).toBe(false);
   });
 
-  it('formats step instructions with spoken grounding cue on first step', () => {
+  it('formats step instructions with natural conversational cues across steps', () => {
     const step1 = formatStepUtterance(mockArrabiataRecipe.steps[0], 4);
     expect(step1).toBe(
-      "Step 1: Bring a large pot of salted water to a boil. Say 'next' when done.",
+      "Step 1: Bring a large pot of salted water to a boil. Let me know when you're ready.",
     );
 
     const step2 = formatStepUtterance(mockArrabiataRecipe.steps[1], 4);
     expect(step2).toBe(
-      'Step 2: Heat olive oil in a large skillet over medium heat and add garlic.',
+      "Step 2: Heat olive oil in a large skillet over medium heat and add garlic. Let me know when you're ready.",
     );
 
     const step4 = formatStepUtterance(mockArrabiataRecipe.steps[3], 4);
-    expect(step4).toBe('Final step: Toss cooked penne with sauce and garnish with fresh basil.');
+    expect(step4).toBe(
+      "Final step: Toss cooked penne with sauce and garnish with fresh basil. Let me know when you're done.",
+    );
   });
 
   it('performs instant ingredient lookup accurately', () => {
@@ -428,5 +471,199 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
     expect(formatCheckTimerUtterance(multiTimers, undefined, now)).toBe(
       'You have 2 active timers: pasta with 2 minutes left, and oven with 15 minutes left.',
     );
+  });
+
+  it('progressively escalates on consecutive ASR_NOINPUT events and resumes on CLICK', () => {
+    const actor = createTestCookingActor();
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+
+    expect(actor.getSnapshot().value).toBe('PromptRecipe');
+    expect(actor.getSnapshot().context.noInputCount).toBe(0);
+
+    // first no-input timeout buffers utterance until recognition teardown completes
+    actor.send({ type: 'ASR_NOINPUT' });
+    expect(actor.getSnapshot().context.noInputCount).toBe(1);
+    expect(actor.getSnapshot().context.pendingUtterance).toBe(prompts.noInput[0]);
+    actor.send({ type: 'LISTEN_COMPLETE' });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.noInput[0]);
+    expect(actor.getSnapshot().context.pendingUtterance).toBeNull();
+
+    // second no-input timeout
+    actor.send({ type: 'ASR_NOINPUT' });
+    expect(actor.getSnapshot().context.noInputCount).toBe(2);
+    expect(actor.getSnapshot().context.pendingUtterance).toBe(prompts.noInput[1]);
+    actor.send({ type: 'LISTEN_COMPLETE' });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.noInput[1]);
+    expect(actor.getSnapshot().context.pendingUtterance).toBeNull();
+
+    // third no-input timeout (pauses)
+    actor.send({ type: 'ASR_NOINPUT' });
+    expect(actor.getSnapshot().context.noInputCount).toBe(3);
+    expect(actor.getSnapshot().context.pendingUtterance).toBe(prompts.noInput[2]);
+    actor.send({ type: 'LISTEN_COMPLETE' });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.noInput[2]);
+    expect(actor.getSnapshot().context.pendingUtterance).toBeNull();
+    expect(actor.getSnapshot().context.speechStatus).toBe('paused');
+
+    // subsequent no-input timeout when already paused is ignored
+    actor.send({ type: 'ASR_NOINPUT' });
+    expect(actor.getSnapshot().context.noInputCount).toBe(3);
+    expect(actor.getSnapshot().context.pendingUtterance).toBeNull();
+
+    // resumes on click
+    actor.send({ type: 'CLICK' });
+    expect(actor.getSnapshot().context.noInputCount).toBe(0);
+    expect(actor.getSnapshot().context.speechStatus).toBe('listening');
+  });
+
+  it('ignores ASR_NOINPUT when in Completed state', async () => {
+    const actor = createTestCookingActor();
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // skip prep directly to step 1
+    actor.send({ type: 'SKIP_PREP' });
+    actor.send({ type: 'NEXT_STEP' }); // step 1 -> 2
+    actor.send({ type: 'NEXT_STEP' }); // step 2 -> 3
+    actor.send({ type: 'NEXT_STEP' }); // step 3 -> 4
+    actor.send({ type: 'NEXT_STEP' }); // step 4 (last step) -> Completed
+
+    expect(actor.getSnapshot().value).toBe('Completed');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'All steps completed. Enjoy your meal!',
+    );
+
+    // silence timeout in Completed state should not trigger no-input prompt
+    actor.send({ type: 'ASR_NOINPUT' });
+    expect(actor.getSnapshot().context.noInputCount).toBe(0);
+    expect(actor.getSnapshot().context.pendingUtterance).toBeNull();
+  });
+
+  it('speaks repair prompt on UNKNOWN utterance without dropping cooking state', () => {
+    const actor = createTestCookingActor();
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+
+    actor.send({ type: 'UNKNOWN' });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.cannotHear);
+  });
+
+  it('accumulates multi-turn conversation history with system prompt, user speech, and NLU acts', () => {
+    const actor = createTestCookingActor();
+
+    // Initial state contains system prompt
+    const initialMsgs = actor.getSnapshot().context.messages;
+    expect(initialMsgs.length).toBe(1);
+    expect(initialMsgs[0].role).toBe('system');
+    expect(initialMsgs[0].content).toBe(prompts.systemDefault);
+
+    // Start cooking triggers PromptRecipe assistant utterance
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+
+    const msgsAfterStart = actor.getSnapshot().context.messages;
+    expect(msgsAfterStart.length).toBe(2);
+    expect(msgsAfterStart[1].role).toBe('assistant');
+    expect(msgsAfterStart[1].content).toBe(prompts.promptRecipe);
+
+    // User speaks recipe query
+    actor.send({
+      type: 'RECOGNISED',
+      value: [{ utterance: 'make pasta', confidence: 0.95 }],
+    });
+
+    const msgsAfterUser = actor.getSnapshot().context.messages;
+    expect(msgsAfterUser.length).toBe(3);
+    expect(msgsAfterUser[2].role).toBe('user');
+    expect(msgsAfterUser[2].content).toBe('make pasta');
+
+    // NLU resolves act to SEARCH_RECIPE
+    actor.send({ type: 'ACT_RESOLVED', act: 'SEARCH_RECIPE' });
+    const msgsAfterAct = actor.getSnapshot().context.messages;
+    expect(msgsAfterAct[2].act).toBe('SEARCH_RECIPE');
+  });
+
+  it('safely compiles structured debug reports with and without active recipe', async () => {
+    const actor = createTestCookingActor();
+
+    // Idle report
+    const idleReport = buildDebugReport(actor.getSnapshot());
+    expect(idleReport.dialogueState).toBe('Idle');
+    expect(idleReport.recipe).toBeNull();
+    expect(idleReport.messages.length).toBe(1);
+
+    // Active recipe report
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+
+    // allow microtask queue to process actor invocation
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    actor.send({
+      type: 'RECOGNISED',
+      value: [{ utterance: 'yes ready', confidence: 0.92 }],
+    });
+    actor.send({
+      type: 'ACT_RESOLVED',
+      act: 'AFFIRM',
+      entities: { query: 'yes' },
+    });
+
+    const activeReport = buildDebugReport(actor.getSnapshot());
+    expect(activeReport.dialogueState).toBe('ConfirmRecipe');
+    expect(activeReport.recipe?.title).toBe('Spicy Arrabiata Penne');
+    expect(activeReport.recipe?.totalSteps).toBe(4);
+    expect(activeReport.recipe?.currentStepIndex).toBe(0);
+    expect(activeReport.latestAsr?.utterance).toBe('yes ready');
+    expect(activeReport.latestAsr?.confidence).toBe(0.92);
+    expect(activeReport.lastResolvedAct).toBe('AFFIRM');
+    expect(activeReport.lastResolvedEntities).toEqual({ query: 'yes' });
+    expect(activeReport.messages.length).toBeGreaterThan(1);
+  });
+
+  it('switches recipes globally via SEARCH_RECIPE while in ConfirmRecipe (barge-in scenario)', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'apple pie' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(actor.getSnapshot().value).toBe('ConfirmRecipe');
+
+    // user barges in mid-confirmation and asks to cook pasta instead
+    actor.send({ type: 'SEARCH_RECIPE', query: 'pasta' });
+    expect(actor.getSnapshot().value).toBe('FetchingRecipe');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(actor.getSnapshot().value).toBe('ConfirmRecipe');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain(
+      'Ready to gather ingredients?',
+    );
+  });
+
+  it('handles HELP and GREETING globally without losing current state', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    expect(actor.getSnapshot().value).toBe('PromptRecipe');
+
+    // ask for help
+    actor.send({ type: 'HELP' });
+    expect(actor.getSnapshot().value).toBe('PromptRecipe');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain(
+      'navigate steps with next or repeat',
+    );
+
+    // greeting
+    actor.send({ type: 'GREETING' });
+    expect(actor.getSnapshot().value).toBe('PromptRecipe');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe('Hi! Ready when you are.');
   });
 });

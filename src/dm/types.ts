@@ -17,7 +17,14 @@ export type MessageRole = (typeof ROLES)[keyof typeof ROLES];
 export interface Message {
   role: MessageRole;
   content: string;
+  act?: DialogueAct;
+  timestamp?: string;
 }
+
+/**
+ * current speech processing and microphone activity status
+ */
+export type SpeechStatus = 'idle' | 'listening' | 'speaking' | 'processing' | 'paused';
 
 /**
  * dialogue manager session context tracking active recipe and procedural execution progress
@@ -67,6 +74,22 @@ export interface CookingContext {
    * descriptive error message when recipe fetch or action fails
    */
   errorMessage: string | null;
+  /**
+   * current mic and speech synthesis activity state
+   */
+  speechStatus?: SpeechStatus;
+  /**
+   * pending utterance buffered until recognizer teardown completes
+   */
+  pendingUtterance?: string | null;
+  /**
+   * most recently resolved semantic dialogue act
+   */
+  lastResolvedAct?: DialogueAct | null;
+  /**
+   * entities extracted by semantic parser for the latest dialogue act
+   */
+  lastResolvedEntities?: Record<string, unknown> | null;
 }
 
 /**
@@ -94,5 +117,8 @@ export type CookingEvent =
   | { type: 'ASR_NOINPUT' }
   | { type: 'LISTEN_COMPLETE' }
   | { type: 'RECOGNISED'; value: Hypothesis[] }
+  | { type: 'UNKNOWN' }
+  | { type: 'HELP' }
+  | { type: 'GREETING' }
   | { type: 'ACT_RESOLVED'; act: DialogueAct; entities?: Record<string, unknown> }
   | SpeechStateExternalEvent;

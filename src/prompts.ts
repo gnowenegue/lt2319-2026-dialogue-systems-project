@@ -32,6 +32,10 @@ Schema:
 Rules:
 - Omit entities or unused entity keys if not mentioned.
 - Only select acts from the Acts list; if unclear, use "UNKNOWN".
+- Conversational agreements, confirmations, or readiness (e.g. agreeing, confirming possession of ingredients, or indicating readiness) map to AFFIRM.
+- Disagreements or rejections like "no", "nope", "nevermind" map to DENY.
+- Advancing cues like "next", "done", "finished", "go ahead" map to NEXT_STEP.
+- Skipping ingredient prep like "skip prep", "skip ingredients", "start cooking", "done with ingredients" maps to SKIP_PREP.
 - Never infer or assume entities not explicitly spoken.
 - Convert timer durations to integer seconds (never minutes or text).`,
 
@@ -82,6 +86,8 @@ Rules:
    * initial spoken utterance prompting the user to specify a recipe to cook
    */
   promptRecipe: 'Hi! What would you like to cook today?',
+  greeting: 'Hi! Ready when you are.',
+  help: 'You can ask to search for a recipe, navigate steps with next or repeat, set timers, or ask about ingredients.',
   cannotHear: "Sorry, I didn't catch that. Could you say that again?",
   noInput: [
     "Sorry, I didn't catch that. Could you say that again?",

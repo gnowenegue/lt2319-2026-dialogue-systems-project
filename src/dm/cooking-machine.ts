@@ -15,9 +15,33 @@ import {
   formatStepUtterance,
   lookupIngredient,
 } from './helpers';
-import type { CookingContext, CookingEvent } from './types';
+import type { CookingContext, CookingEvent, Message, SpeechStatus } from './types';
 
 export { fetchRecipeLogic };
+
+/**
+ * pure helper returning updated assistant spoken utterance, active speaking state, and appended messages
+ */
+function prepareAssistantSpeech(
+  context: CookingContext,
+  text: string,
+): { lastSpokenUtterance: string; speechStatus: SpeechStatus; messages: Message[] } {
+  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return {
+    lastSpokenUtterance: text,
+    speechStatus: 'speaking',
+    messages: text
+      ? [
+          ...context.messages,
+          {
+            role: ROLES.Assistant,
+            content: text,
+            timestamp,
+          },
+        ]
+      : context.messages,
+  };
+}
 
 /**
  * procedural cooking state machine coordinating recipe discovery, paced ingredient prep,
@@ -58,16 +82,113 @@ export const cookingMachine = setup({
     spstRef: spawn('speechstateActor', { input: settings }),
     timerRef: spawn('timerActor'),
     activeTimers: [],
+    speechStatus: 'idle',
+    pendingUtterance: null,
+    lastResolvedAct: null,
+    lastResolvedEntities: null,
   }),
   on: {
     RECOGNISED: {
       actions: [
-        assign({
-          lastResult: ({ event }) => event.value,
+        assign(({ context, event }) => {
+          const userUtterance = event.value[0]?.utterance?.trim();
+          const timestamp = new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          return {
+            lastResult: event.value,
+            noInputCount: 0,
+            pendingUtterance: null,
+            speechStatus: 'processing',
+            messages: userUtterance
+              ? [
+                  ...context.messages,
+                  {
+                    role: ROLES.User,
+                    content: userUtterance,
+                    timestamp,
+                  },
+                ]
+              : context.messages,
+          };
         }),
         'handleRecognised',
       ],
     },
+    ACT_RESOLVED: {
+      actions: assign(({ context, event }) => {
+        const msgs = [...context.messages];
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === ROLES.User) {
+            msgs[i] = { ...msgs[i], act: event.act };
+            break;
+          }
+        }
+        return {
+          lastResolvedAct: event.act,
+          lastResolvedEntities: event.entities ?? null,
+          messages: msgs,
+        };
+      }),
+    },
+    ASR_NOINPUT: {
+      guard: ({ context }) => context.noInputCount < prompts.noInput.length,
+      actions: assign(({ context }) => {
+        const idx = Math.min(context.noInputCount, prompts.noInput.length - 1);
+        const text = prompts.noInput[idx];
+        const nextCount = context.noInputCount + 1;
+        return {
+          noInputCount: nextCount,
+          pendingUtterance: text,
+        };
+      }),
+    },
+    LISTEN_COMPLETE: {
+      guard: ({ context }) => Boolean(context.pendingUtterance),
+      actions: [
+        assign(({ context }) => {
+          const text = context.pendingUtterance ?? '';
+          const isPaused = context.noInputCount >= prompts.noInput.length;
+          const asst = prepareAssistantSpeech(context, text);
+          return {
+            ...asst,
+            pendingUtterance: null,
+            speechStatus: isPaused ? 'paused' : 'speaking',
+          };
+        }),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => {
+            const isPaused = context.noInputCount >= prompts.noInput.length;
+            return {
+              utterance: context.lastSpokenUtterance ?? '',
+              bargeIn: !isPaused,
+            };
+          },
+        },
+      ],
+    },
+    UNKNOWN: {
+      actions: [
+        assign(({ context }) => prepareAssistantSpeech(context, prompts.cannotHear)),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    CLICK: [
+      {
+        guard: ({ context }) => context.noInputCount >= prompts.noInput.length,
+        actions: [
+          assign({ noInputCount: 0, pendingUtterance: null, speechStatus: 'listening' }),
+          { type: 'spst.listen' },
+        ],
+      },
+    ],
     TIMERS_UPDATED: {
       actions: assign({
         activeTimers: ({ event }) => event.timers,
@@ -75,9 +196,9 @@ export const cookingMachine = setup({
     },
     TIMER_EXPIRED: {
       actions: [
-        assign({
-          lastSpokenUtterance: ({ event }) => `Time's up! Your ${event.label} timer is done.`,
-        }),
+        assign(({ context, event }) =>
+          prepareAssistantSpeech(context, `Time's up! Your ${event.label} timer is done.`),
+        ),
         {
           type: 'spst.speak',
           params: ({ context }) => ({
@@ -100,12 +221,10 @@ export const cookingMachine = setup({
             });
           }
         },
-        assign({
-          lastSpokenUtterance: ({ event }) => {
-            const label = event.label?.trim() || 'cooking';
-            const duration = formatDurationForSpeech(event.durationSeconds);
-            return `Started a ${duration} timer for ${label}.`;
-          },
+        assign(({ context, event }) => {
+          const label = event.label?.trim() || 'cooking';
+          const duration = formatDurationForSpeech(event.durationSeconds);
+          return prepareAssistantSpeech(context, `Started a ${duration} timer for ${label}.`);
         }),
         {
           type: 'spst.speak',
@@ -117,9 +236,11 @@ export const cookingMachine = setup({
     },
     CHECK_TIMER: {
       actions: [
-        assign({
-          lastSpokenUtterance: ({ context, event }) =>
-            formatCheckTimerUtterance(context.activeTimers, event.label),
+        assign(({ context, event }) => {
+          const matching = event.label
+            ? context.activeTimers.filter((t) => t.label === event.label)
+            : context.activeTimers;
+          return prepareAssistantSpeech(context, formatCheckTimerUtterance(matching, event.label));
         }),
         {
           type: 'spst.speak',
@@ -144,11 +265,11 @@ export const cookingMachine = setup({
             }
           }
         },
-        assign({
-          lastSpokenUtterance: ({ event }) =>
-            event.label?.trim()
-              ? `Cancelled the ${event.label.trim()} timer.`
-              : 'Cancelled all timers.',
+        assign(({ context, event }) => {
+          const text = event.label?.trim()
+            ? `Cancelled the ${event.label.trim()} timer.`
+            : 'Cancelled all timers.';
+          return prepareAssistantSpeech(context, text);
         }),
         {
           type: 'spst.speak',
@@ -160,10 +281,37 @@ export const cookingMachine = setup({
     },
     QUERY_INGREDIENT: {
       actions: [
-        assign({
-          lastSpokenUtterance: ({ context, event }) =>
+        assign(({ context, event }) =>
+          prepareAssistantSpeech(
+            context,
             lookupIngredient(context.recipe?.ingredients ?? [], event.ingredient),
-        }),
+          ),
+        ),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    SEARCH_RECIPE: {
+      target: '.FetchingRecipe',
+    },
+    HELP: {
+      actions: [
+        assign(({ context }) => prepareAssistantSpeech(context, prompts.help)),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    GREETING: {
+      actions: [
+        assign(({ context }) => prepareAssistantSpeech(context, prompts.greeting)),
         {
           type: 'spst.speak',
           params: ({ context }) => ({
@@ -178,11 +326,13 @@ export const cookingMachine = setup({
       on: {
         START: 'Prepare',
         CLICK: 'Prepare',
+        ASR_NOINPUT: {},
+        LISTEN_COMPLETE: {},
       },
     },
 
     Prepare: {
-      entry: { type: 'spst.prepare' },
+      entry: [assign({ speechStatus: 'processing' }), { type: 'spst.prepare' }],
       on: {
         ASRTTS_READY: 'PromptRecipe',
       },
@@ -190,10 +340,10 @@ export const cookingMachine = setup({
 
     PromptRecipe: {
       entry: [
-        assign({
-          lastSpokenUtterance: prompts.promptRecipe,
+        assign(({ context }) => ({
+          ...prepareAssistantSpeech(context, prompts.promptRecipe),
           errorMessage: null,
-        }),
+        })),
         {
           type: 'spst.speak',
           params: ({ context }) => ({
@@ -203,13 +353,15 @@ export const cookingMachine = setup({
       ],
       on: {
         SPEAK_COMPLETE: {
-          actions: { type: 'spst.listen' },
+          guard: ({ context }) => context.noInputCount < prompts.noInput.length,
+          actions: [assign({ speechStatus: 'listening' }), { type: 'spst.listen' }],
         },
         SEARCH_RECIPE: 'FetchingRecipe',
       },
     },
 
     FetchingRecipe: {
+      entry: assign({ speechStatus: 'processing' }),
       invoke: {
         id: 'fetchRecipeActor',
         src: 'fetchRecipeActor',
@@ -227,22 +379,26 @@ export const cookingMachine = setup({
         },
         onError: {
           target: 'PromptRecipe',
-          actions: assign({
-            errorMessage: ({ event }) =>
-              event.error instanceof Error ? event.error.message : String(event.error),
-          }),
+          actions: assign(({ context, event }) => ({
+            ...prepareAssistantSpeech(
+              context,
+              'Sorry, I could not find a recipe for that. What else would you like to cook?',
+            ),
+            errorMessage: event.error instanceof Error ? event.error.message : String(event.error),
+          })),
         },
       },
     },
 
     ConfirmRecipe: {
       entry: [
-        assign({
-          lastSpokenUtterance: ({ context }) => {
-            const recipe = context.recipe;
-            const time = recipe?.totalEstimatedMinutes ?? 20;
-            return `Found ${recipe?.title}. It takes about ${time} minutes. Ready to gather ingredients?`;
-          },
+        assign(({ context }) => {
+          const recipe = context.recipe;
+          const time = recipe?.totalEstimatedMinutes ?? 20;
+          return prepareAssistantSpeech(
+            context,
+            `Found ${recipe?.title}. It takes about ${time} minutes. Ready to gather ingredients?`,
+          );
         }),
         {
           type: 'spst.speak',
@@ -253,20 +409,24 @@ export const cookingMachine = setup({
       ],
       on: {
         SPEAK_COMPLETE: {
-          actions: { type: 'spst.listen' },
+          guard: ({ context }) => context.noInputCount < prompts.noInput.length,
+          actions: [assign({ speechStatus: 'listening' }), { type: 'spst.listen' }],
         },
         AFFIRM: 'AnnouncePrepBatch',
         SKIP_PREP: 'AnnounceStep',
+        NEXT_STEP: 'AnnounceStep',
         DENY: 'PromptRecipe',
       },
     },
 
     AnnouncePrepBatch: {
       entry: [
-        assign({
-          lastSpokenUtterance: ({ context }) =>
+        assign(({ context }) =>
+          prepareAssistantSpeech(
+            context,
             formatPrepBatchUtterance(context.recipe?.ingredients ?? [], context.prepBatchIndex),
-        }),
+          ),
+        ),
         {
           type: 'spst.speak',
           params: ({ context }) => ({
@@ -278,8 +438,12 @@ export const cookingMachine = setup({
     },
 
     WaitingForPrepConfirmation: {
-      entry: [{ type: 'spst.listen' }],
+      entry: [assign({ speechStatus: 'listening' }), { type: 'spst.listen' }],
       on: {
+        SPEAK_COMPLETE: {
+          guard: ({ context }) => context.noInputCount < prompts.noInput.length,
+          actions: [assign({ speechStatus: 'listening' }), { type: 'spst.listen' }],
+        },
         AFFIRM: [
           {
             guard: 'hasMorePrepBatches',
@@ -302,12 +466,11 @@ export const cookingMachine = setup({
 
     AnnounceStep: {
       entry: [
-        assign({
-          lastSpokenUtterance: ({ context }) => {
-            const steps = context.recipe?.steps ?? [];
-            const step = steps[context.currentStepIndex];
-            return step ? formatStepUtterance(step, steps.length) : 'All steps completed.';
-          },
+        assign(({ context }) => {
+          const steps = context.recipe?.steps ?? [];
+          const step = steps[context.currentStepIndex];
+          const text = step ? formatStepUtterance(step, steps.length) : 'All steps completed.';
+          return prepareAssistantSpeech(context, text);
         }),
         {
           type: 'spst.speak',
@@ -320,8 +483,15 @@ export const cookingMachine = setup({
     },
 
     WaitingForStepCommand: {
-      entry: [{ type: 'spst.listen' }],
+      entry: [assign({ speechStatus: 'listening' }), { type: 'spst.listen' }],
       on: {
+        SPEAK_COMPLETE: {
+          guard: ({ context }) => context.noInputCount < prompts.noInput.length,
+          actions: [assign({ speechStatus: 'listening' }), { type: 'spst.listen' }],
+        },
+        AFFIRM: {
+          actions: ({ self }) => self.send({ type: 'NEXT_STEP' }),
+        },
         NEXT_STEP: [
           {
             guard: 'isLastStep',
@@ -360,19 +530,23 @@ export const cookingMachine = setup({
 
     Completed: {
       entry: [
-        assign({
-          lastSpokenUtterance: 'All steps completed. Enjoy your meal!',
-        }),
+        assign(({ context }) => ({
+          ...prepareAssistantSpeech(context, 'All steps completed. Enjoy your meal!'),
+          speechStatus: 'idle',
+        })),
         {
           type: 'spst.speak',
           params: ({ context }) => ({
             utterance: context.lastSpokenUtterance ?? '',
+            bargeIn: false,
           }),
         },
       ],
       on: {
         START: 'PromptRecipe',
         CLICK: 'PromptRecipe',
+        ASR_NOINPUT: {},
+        LISTEN_COMPLETE: {},
       },
     },
   },
