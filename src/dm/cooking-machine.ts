@@ -7,7 +7,10 @@ import prompts from '../prompts';
 import { getRefinedRecipe, searchMealsByName } from '../recipes';
 import type { NormalizedRecipe } from '../recipes/types';
 import { parseUtterance } from '../semantic-parser';
+import { timerActorLogic } from '../timers';
 import {
+  formatCheckTimerUtterance,
+  formatDurationForSpeech,
   formatPrepBatchUtterance,
   formatStepUtterance,
   hasMorePrepBatches,
@@ -101,6 +104,22 @@ export const cookingMachine = setup({
         case 'QUERY_INGREDIENT':
           self.send({ type: 'QUERY_INGREDIENT', ingredient: parsed.entities?.ingredient });
           break;
+        case 'SET_TIMER': {
+          const duration = Number(parsed.entities?.durationSeconds) || 60;
+          const label = (parsed.entities?.timerLabel as string | undefined)?.trim() || 'cooking';
+          self.send({ type: 'SET_TIMER', durationSeconds: duration, label });
+          break;
+        }
+        case 'CHECK_TIMER': {
+          const label = parsed.entities?.timerLabel as string | undefined;
+          self.send({ type: 'CHECK_TIMER', label });
+          break;
+        }
+        case 'CANCEL_TIMER': {
+          const label = parsed.entities?.timerLabel as string | undefined;
+          self.send({ type: 'CANCEL_TIMER', label });
+          break;
+        }
         default:
           console.warn(
             `[NLU] Unhandled dialogue act: "${parsed.act}" for utterance: "${utterance}"`,
@@ -111,6 +130,7 @@ export const cookingMachine = setup({
   actors: {
     fetchRecipeActor: fetchRecipeLogic,
     speechstateActor: speechstate,
+    timerActor: timerActorLogic,
   },
   guards: {
     hasMorePrepBatches: ({ context }) =>
@@ -142,10 +162,121 @@ export const cookingMachine = setup({
     noInputCount: 0,
     errorMessage: null,
     spstRef: spawn('speechstateActor', { input: settings }),
+    timerRef: spawn('timerActor'),
+    activeTimers: [],
   }),
   on: {
     RECOGNISED: {
-      actions: 'handleRecognised',
+      actions: [
+        assign({
+          lastResult: ({ event }) => event.value,
+        }),
+        'handleRecognised',
+      ],
+    },
+    TIMERS_UPDATED: {
+      actions: assign({
+        activeTimers: ({ event }) => event.timers,
+      }),
+    },
+    TIMER_EXPIRED: {
+      actions: [
+        assign({
+          lastSpokenUtterance: ({ event }) => `Time's up! Your ${event.label} timer is done.`,
+        }),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    SET_TIMER: {
+      actions: [
+        ({ context, event }) => {
+          if (context.timerRef) {
+            const id = `timer-${Date.now()}`;
+            const label = event.label?.trim() || 'cooking';
+            context.timerRef.send({
+              type: 'START_TIMER',
+              id,
+              label,
+              durationSeconds: event.durationSeconds,
+            });
+          }
+        },
+        assign({
+          lastSpokenUtterance: ({ event }) => {
+            const label = event.label?.trim() || 'cooking';
+            const duration = formatDurationForSpeech(event.durationSeconds);
+            return `Started a ${duration} timer for ${label}.`;
+          },
+        }),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    CHECK_TIMER: {
+      actions: [
+        assign({
+          lastSpokenUtterance: ({ context, event }) =>
+            formatCheckTimerUtterance(context.activeTimers, event.label),
+        }),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    CANCEL_TIMER: {
+      actions: [
+        ({ context, event }) => {
+          if (context.timerRef) {
+            if (event.label || event.id) {
+              context.timerRef.send({
+                type: 'CANCEL_TIMER',
+                id: event.id,
+                label: event.label,
+              });
+            } else {
+              context.timerRef.send({ type: 'RESET_TIMERS' });
+            }
+          }
+        },
+        assign({
+          lastSpokenUtterance: ({ event }) =>
+            event.label?.trim()
+              ? `Cancelled the ${event.label.trim()} timer.`
+              : 'Cancelled all timers.',
+        }),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
+    },
+    QUERY_INGREDIENT: {
+      actions: [
+        assign({
+          lastSpokenUtterance: ({ context, event }) =>
+            lookupIngredient(context.recipe?.ingredients ?? [], event.ingredient),
+        }),
+        {
+          type: 'spst.speak',
+          params: ({ context }) => ({
+            utterance: context.lastSpokenUtterance ?? '',
+          }),
+        },
+      ],
     },
   },
   states: {
@@ -267,18 +398,9 @@ export const cookingMachine = setup({
             target: 'AnnounceStep',
           },
         ],
-        NEXT_STEP: [
-          {
-            guard: 'hasMorePrepBatches',
-            actions: assign({
-              prepBatchIndex: ({ context }) => context.prepBatchIndex + 1,
-            }),
-            target: 'AnnouncePrepBatch',
-          },
-          {
-            target: 'AnnounceStep',
-          },
-        ],
+        NEXT_STEP: {
+          actions: ({ self }) => self.send({ type: 'AFFIRM' }),
+        },
         REPEAT_STEP: 'AnnouncePrepBatch',
         SKIP_PREP: 'AnnounceStep',
       },
@@ -290,7 +412,7 @@ export const cookingMachine = setup({
           lastSpokenUtterance: ({ context }) => {
             const steps = context.recipe?.steps ?? [];
             const step = steps[context.currentStepIndex];
-            return step ? formatStepUtterance(step, steps.length) : 'All steps completed.';
+            return step ? formatStepUtterance(step, steps.length) : '';
           },
         }),
         {
@@ -339,27 +461,7 @@ export const cookingMachine = setup({
           }),
           target: 'AnnounceStep',
         },
-        QUERY_INGREDIENT: 'AnswerIngredientQuery',
       },
-    },
-
-    AnswerIngredientQuery: {
-      entry: [
-        assign({
-          lastSpokenUtterance: ({ context, event }) =>
-            lookupIngredient(
-              context.recipe?.ingredients ?? [],
-              event.type === 'QUERY_INGREDIENT' ? event.ingredient : undefined,
-            ),
-        }),
-        {
-          type: 'spst.speak',
-          params: ({ context }) => ({
-            utterance: context.lastSpokenUtterance ?? '',
-          }),
-        },
-      ],
-      always: 'WaitingForStepCommand',
     },
 
     Completed: {

@@ -4,6 +4,7 @@ import type { AnyActorRef } from 'xstate';
 import type { ROLES } from '../constants';
 import type { NormalizedRecipe } from '../recipes/types';
 import type { DialogueAct } from '../semantic-parser/types';
+import type { ActiveTimer } from '../timers/types';
 
 /**
  * conversational message role
@@ -26,6 +27,14 @@ export interface CookingContext {
    * active SpeechState actor reference for ASR / TTS
    */
   spstRef?: AnyActorRef | null;
+  /**
+   * active child actor reference for background kitchen timers
+   */
+  timerRef?: AnyActorRef | null;
+  /**
+   * active kitchen timers synced via push events
+   */
+  activeTimers: readonly ActiveTimer[];
   /**
    * active normalized recipe being prepared and cooked
    */
@@ -74,6 +83,11 @@ export type CookingEvent =
   | { type: 'REPEAT_STEP' }
   | { type: 'GOTO_STEP'; stepNumber: number }
   | { type: 'QUERY_INGREDIENT'; ingredient?: string }
+  | { type: 'SET_TIMER'; durationSeconds: number; label?: string }
+  | { type: 'CHECK_TIMER'; label?: string }
+  | { type: 'CANCEL_TIMER'; label?: string; id?: string }
+  | { type: 'TIMER_EXPIRED'; id: string; label: string }
+  | { type: 'TIMERS_UPDATED'; timers: readonly ActiveTimer[] }
   | { type: 'SKIP_PREP' }
   | { type: 'SPEAK_COMPLETE' }
   | { type: 'ASRTTS_READY' }

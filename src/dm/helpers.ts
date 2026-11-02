@@ -1,4 +1,6 @@
 import type { RecipeIngredient, RecipeStep } from '../recipes/types';
+import { calculateRemainingSeconds } from '../timers';
+import type { ActiveTimer } from '../timers/types';
 import { INGREDIENTS_PER_PREP_BATCH } from './constants';
 
 /**
@@ -51,7 +53,7 @@ export function formatStepUtterance(step: RecipeStep, totalSteps: number): strin
   }
 
   if (step.stepNumber === totalSteps) {
-    return `Final step: ${step.instruction} Enjoy your meal!`;
+    return `Final step: ${step.instruction}`;
   }
 
   return `Step ${step.stepNumber}: ${step.instruction}`;
@@ -80,4 +82,80 @@ export function lookupIngredient(ingredients: RecipeIngredient[], queryName?: st
   }
 
   return `I don't see ${queryName} in this recipe.`;
+}
+
+/**
+ * formats duration in seconds into natural conversational phrasing for spoken delivery
+ */
+export function formatDurationForSpeech(totalSeconds: number): string {
+  const total = Math.max(0, Math.floor(totalSeconds));
+  if (total === 0) {
+    return '0 seconds';
+  }
+
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  const parts: string[] = [];
+  if (hours > 0) {
+    parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+  }
+  if (seconds > 0) {
+    parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+  }
+
+  if (parts.length === 1) {
+    return parts[0];
+  }
+  if (parts.length === 2) {
+    return `${parts[0]} and ${parts[1]}`;
+  }
+  return `${parts[0]}, ${parts[1]} and ${parts[2]}`;
+}
+
+/**
+ * formats a conversational response when querying active kitchen timers
+ */
+export function formatCheckTimerUtterance(
+  activeTimers: readonly ActiveTimer[],
+  queryLabel?: string,
+  now = Date.now(),
+): string {
+  if (activeTimers.length === 0) {
+    return "You don't have any active timers.";
+  }
+
+  if (queryLabel?.trim()) {
+    const normalized = queryLabel.trim().toLowerCase();
+    const match = activeTimers.find(
+      (t) =>
+        t.label.toLowerCase() === normalized ||
+        t.label.toLowerCase().includes(normalized) ||
+        normalized.includes(t.label.toLowerCase()),
+    );
+
+    if (match) {
+      const remaining = calculateRemainingSeconds(match.targetTimestamp, now);
+      return `The ${match.label} timer has ${formatDurationForSpeech(remaining)} left.`;
+    }
+
+    return `I couldn't find an active timer for ${queryLabel}.`;
+  }
+
+  if (activeTimers.length === 1) {
+    const timer = activeTimers[0];
+    const remaining = calculateRemainingSeconds(timer.targetTimestamp, now);
+    return `Your ${timer.label} timer has ${formatDurationForSpeech(remaining)} left.`;
+  }
+
+  const descriptions = activeTimers.map((t) => {
+    const remaining = calculateRemainingSeconds(t.targetTimestamp, now);
+    return `${t.label} with ${formatDurationForSpeech(remaining)} left`;
+  });
+
+  return `You have ${activeTimers.length} active timers: ${descriptions.join(', and ')}.`;
 }

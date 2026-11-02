@@ -5,6 +5,8 @@ import { createActor, fromPromise, fromTransition } from 'xstate';
 import type { NormalizedRecipe } from '../../recipes/types';
 import { cookingMachine } from '../cooking-machine';
 import {
+  formatCheckTimerUtterance,
+  formatDurationForSpeech,
   formatPrepBatchUtterance,
   formatStepUtterance,
   hasMorePrepBatches,
@@ -254,6 +256,74 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
       'Hi! What would you like to cook today?',
     );
   });
+
+  it('manages kitchen timers via push synchronization without disturbing active recipe step', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    actor.send({ type: 'SKIP_PREP' });
+
+    // cook is currently on step 1 (index 0)
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
+
+    // cook says: "Set a pasta timer for 8 minutes"
+    actor.send({
+      type: 'SET_TIMER',
+      durationSeconds: 480,
+      label: 'pasta',
+    });
+
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'Started a 8 minutes timer for pasta.',
+    );
+    // state must remain at WaitingForStepCommand with step 1 intact
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
+
+    // activeTimers is pushed into context immediately
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(1);
+    expect(actor.getSnapshot().context.activeTimers[0].label).toBe('pasta');
+
+    // cook asks: "How much time is left on my pasta timer?"
+    actor.send({
+      type: 'CHECK_TIMER',
+      label: 'pasta',
+    });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain('The pasta timer has');
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+
+    // cook advances step while timer is still running
+    actor.send({ type: 'NEXT_STEP' });
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(1);
+
+    // cook cancels pasta timer
+    actor.send({
+      type: 'CANCEL_TIMER',
+      label: 'pasta',
+    });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe('Cancelled the pasta timer.');
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(0);
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+
+    // background timer expiration event arrives proactively
+    actor.send({
+      type: 'TIMER_EXPIRED',
+      id: 'timer-sauce',
+      label: 'sauce',
+    });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      "Time's up! Your sauce timer is done.",
+    );
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+
+    actor.stop();
+  });
 });
 
 describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
@@ -290,9 +360,7 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
     );
 
     const step4 = formatStepUtterance(mockArrabiataRecipe.steps[3], 4);
-    expect(step4).toBe(
-      'Final step: Toss cooked penne with sauce and garnish with fresh basil. Enjoy your meal!',
-    );
+    expect(step4).toBe('Final step: Toss cooked penne with sauce and garnish with fresh basil.');
   });
 
   it('performs instant ingredient lookup accurately', () => {
@@ -301,5 +369,64 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
     expect(lookupIngredient(ingredients, 'garlic')).toBe('You need 3 cloves garlic.');
     expect(lookupIngredient(ingredients, 'olive oil')).toBe('You need 1/4 cup olive oil.');
     expect(lookupIngredient(ingredients, 'saffron')).toBe("I don't see saffron in this recipe.");
+  });
+
+  it('formats durations into natural spoken dialogue phrasing for speech', () => {
+    expect(formatDurationForSpeech(0)).toBe('0 seconds');
+    expect(formatDurationForSpeech(-5)).toBe('0 seconds');
+    expect(formatDurationForSpeech(1)).toBe('1 second');
+    expect(formatDurationForSpeech(45)).toBe('45 seconds');
+    expect(formatDurationForSpeech(60)).toBe('1 minute');
+    expect(formatDurationForSpeech(120)).toBe('2 minutes');
+    expect(formatDurationForSpeech(61)).toBe('1 minute and 1 second');
+    expect(formatDurationForSpeech(195)).toBe('3 minutes and 15 seconds');
+    expect(formatDurationForSpeech(3600)).toBe('1 hour');
+    expect(formatDurationForSpeech(7200)).toBe('2 hours');
+    expect(formatDurationForSpeech(5400)).toBe('1 hour and 30 minutes');
+    expect(formatDurationForSpeech(3661)).toBe('1 hour, 1 minute and 1 second');
+  });
+
+  it('formats conversational timer query responses accurately', () => {
+    // empty timers
+    expect(formatCheckTimerUtterance([])).toBe("You don't have any active timers.");
+
+    // single timer check
+    const now = 1000000;
+    const timers = [
+      {
+        id: '1',
+        label: 'pasta',
+        targetTimestamp: now + 120000,
+        totalDurationSeconds: 120,
+      },
+    ];
+    expect(formatCheckTimerUtterance(timers, 'pasta', now)).toBe(
+      'The pasta timer has 2 minutes left.',
+    );
+    expect(formatCheckTimerUtterance(timers, undefined, now)).toBe(
+      'Your pasta timer has 2 minutes left.',
+    );
+    expect(formatCheckTimerUtterance(timers, 'garlic bread', now)).toBe(
+      "I couldn't find an active timer for garlic bread.",
+    );
+
+    // multiple timers check
+    const multiTimers = [
+      {
+        id: '1',
+        label: 'pasta',
+        targetTimestamp: now + 120000,
+        totalDurationSeconds: 120,
+      },
+      {
+        id: '2',
+        label: 'oven',
+        targetTimestamp: now + 900000,
+        totalDurationSeconds: 900,
+      },
+    ];
+    expect(formatCheckTimerUtterance(multiTimers, undefined, now)).toBe(
+      'You have 2 active timers: pasta with 2 minutes left, and oven with 15 minutes left.',
+    );
   });
 });
