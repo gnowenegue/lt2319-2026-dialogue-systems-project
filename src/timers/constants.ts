@@ -1,7 +1,7 @@
 /**
  * default heartbeat interval in milliseconds for background ticking
  */
-export const DEFAULT_HEARTBEAT_INTERVAL_MS = 1000;
+export const DEFAULT_HEARTBEAT_INTERVAL_MS = 250;
 
 /**
  * allowable clock jitter in milliseconds to prevent delayed timer triggering

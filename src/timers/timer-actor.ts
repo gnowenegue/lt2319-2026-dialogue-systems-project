@@ -70,52 +70,61 @@ export const timerActorLogic = fromCallback<
   };
 
   receive((event) => {
-    if (event.type === 'START_TIMER') {
-      const duration = Number(event.durationSeconds);
-      // ignore invalid or non-positive durations
-      if (!Number.isFinite(duration) || duration <= 0) {
-        return;
+    switch (event.type) {
+      case 'START_TIMER': {
+        const duration = Number(event.durationSeconds);
+        // ignore invalid or non-positive durations
+        if (!Number.isFinite(duration) || duration <= 0) {
+          return;
+        }
+
+        const trimmedLabel = (event.label || 'timer').trim();
+        const newTimer: ActiveTimer = {
+          id: event.id,
+          label: trimmedLabel,
+          targetTimestamp: Date.now() + duration * 1000,
+          totalDurationSeconds: duration,
+        };
+
+        // replace existing timer with matching `id` or `label`
+        activeTimers = [
+          ...activeTimers.filter(
+            (t) => t.id !== event.id && t.label.toLowerCase() !== trimmedLabel.toLowerCase(),
+          ),
+          newTimer,
+        ];
+        syncHeartbeat();
+        notifyTimersUpdated();
+        break;
       }
-
-      const trimmedLabel = (event.label || 'timer').trim();
-      const newTimer: ActiveTimer = {
-        id: event.id,
-        label: trimmedLabel,
-        targetTimestamp: Date.now() + duration * 1000,
-        totalDurationSeconds: duration,
-      };
-
-      // replace existing timer with matching `id` or `label`
-      activeTimers = [
-        ...activeTimers.filter(
-          (t) => t.id !== event.id && t.label.toLowerCase() !== trimmedLabel.toLowerCase(),
-        ),
-        newTimer,
-      ];
-      syncHeartbeat();
-      notifyTimersUpdated();
-    } else if (event.type === 'CANCEL_TIMER') {
-      if (!event.id && !event.label) {
-        // cancel all active timers when no specific identifier is provided
+      case 'CANCEL_TIMER': {
+        if (!event.id && !event.label) {
+          // cancel all active timers when no specific identifier is provided
+          activeTimers = [];
+        } else {
+          // filter out matching timer by `id` or `label`
+          activeTimers = activeTimers.filter((t) => {
+            if (event.id && t.id === event.id) return false;
+            if (event.label && t.label.toLowerCase() === event.label.trim().toLowerCase()) {
+              return false;
+            }
+            return true;
+          });
+        }
+        syncHeartbeat();
+        notifyTimersUpdated();
+        break;
+      }
+      case 'RESET_TIMERS': {
         activeTimers = [];
-      } else {
-        // filter out matching timer by `id` or `label`
-        activeTimers = activeTimers.filter((t) => {
-          if (event.id && t.id === event.id) return false;
-          if (event.label && t.label.toLowerCase() === event.label.trim().toLowerCase()) {
-            return false;
-          }
-          return true;
-        });
+        syncHeartbeat();
+        notifyTimersUpdated();
+        break;
       }
-      syncHeartbeat();
-      notifyTimersUpdated();
-    } else if (event.type === 'RESET_TIMERS') {
-      activeTimers = [];
-      syncHeartbeat();
-      notifyTimersUpdated();
-    } else if (event.type === 'QUERY_TIMERS') {
-      notifyTimersUpdated();
+      case 'QUERY_TIMERS': {
+        notifyTimersUpdated();
+        break;
+      }
     }
   });
 
