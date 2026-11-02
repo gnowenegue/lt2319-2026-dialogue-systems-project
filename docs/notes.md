@@ -34,6 +34,11 @@ This document records key design decisions, tradeoffs, and domain-specific consi
   - [The Problem: Flat Intent Extraction vs. Nested Document Synthesis](#the-problem-flat-intent-extraction-vs-nested-document-synthesis)
   - [Decision: Decouple Turn-by-Turn Speech from One-Off Ingestion](#decision-decouple-turn-by-turn-speech-from-one-off-ingestion)
   - [Implementation & Environment Configuration](#implementation--environment-configuration)
+- [7. Kitchen Timer Architecture: Web Worker Heartbeat & Absolute Deadlines](#7-kitchen-timer-architecture-web-worker-heartbeat--absolute-deadlines)
+  - [Context & The Hands-Free Kitchen Challenge](#context--the-hands-free-kitchen-challenge)
+  - [The Problem: Browser Tab Throttling & Accumulated Drift](#the-problem-browser-tab-throttling--accumulated-drift)
+  - [Decision: Web Worker Heartbeat + Target Timestamp Deadlines](#decision-web-worker-heartbeat--target-timestamp-deadlines)
+  - [Architectural Separation: Dedicated Child Actor in XState](#architectural-separation-dedicated-child-actor-in-xstate)
 
 ---
 
@@ -217,6 +222,45 @@ Rather than forcing a single model across both disparate tasks:
 * **Zero Runtime Overhead**:
   * [`src/llm.ts`](../src/llm.ts) exports `ACTIVE_LLM_MODEL` and `ACTIVE_REFINER_MODEL`, defaulting to their respective constants with safe fallback to local Ollama if offline.
   * [`src/recipes/refiner.ts`](../src/recipes/refiner.ts) routes directly to `ACTIVE_REFINER_MODEL`.
+
+---
+
+## 7. Kitchen Timer Architecture: Web Worker Heartbeat & Absolute Deadlines
+
+### Context & The Hands-Free Kitchen Challenge
+Hands-free kitchen timers are a core mixed-initiative feature of the dialogue copilot:
+* Users set multi-minute timers by voice while their hands are wet, dirty, or actively handling food (e.g. *"Set a pasta timer for 8 minutes"*).
+* Unlike desktop workflows, cooks frequently switch tabs, minimize windows, or allow the laptop screen to dim and enter power-saving states while food is simmering or baking.
+* Multiple concurrent timers may be active at once (e.g. `"pasta"`, `"sauce"`, `"oven"`).
+* When a timer expires, the system must proactively trigger a spoken alert through the dialogue manager (`cookingMachine` -> `SpeechState`) to notify the cook without requiring manual check-ins.
+
+### The Problem: Browser Tab Throttling & Accumulated Drift
+Relying on standard main-thread JavaScript timing (`setTimeout`, `setInterval`, or recursive tick counters) leads to severe failure modes:
+1. **Aggressive Background Throttling**:
+   * Modern browsers (Chrome, Safari, Firefox) aggressively clamp main-thread timers in background tabs to at most once per second ($1000\,\text{ms}$) after a few seconds, throttle to once per minute after 5 minutes, or suspend them completely via tab freezing/discarding policies.
+   * If a timer relies on `remainingSeconds--` per tick, missed or delayed ticks cause the timer to run significantly slow in real time.
+   * If the tab sleeps, the audible alarm will not ring until the user manually switches back to the tab—potentially minutes after the food has overcooked.
+2. **Cumulative Drift**:
+   * Chained `setTimeout` calls accumulate execution lag from main-thread contention (speech processing, audio rendering, DOM painting), causing drift over 10–30 minute cooking durations.
+
+### Decision: Web Worker Heartbeat + Target Timestamp Deadlines
+To guarantee sub-second accuracy and reliable proactive alerts without external server infrastructure:
+1. **Absolute Timestamp Anchoring (Zero Drift)**:
+   * Timers are stored with an absolute deadline: `targetTimestamp = Date.now() + durationSeconds * 1000`.
+   * Remaining time is computed dynamically on demand: `Math.max(0, Math.ceil((targetTimestamp - Date.now()) / 1000))`.
+   * Even across CPU contention or temporary sleep states, the deadline calculation remains mathematically exact.
+2. **Unthrottled Background Ticking via Web Worker**:
+   * An inline Web Worker (`new Worker(URL.createObjectURL(blob))`) is spawned to emit a steady 1-second pulse (`'TICK'`).
+   * Browsers exempt Web Workers from main-thread tab throttling, ensuring the heartbeat continues to pulse even when the tab is backgrounded.
+   * When `targetTimestamp <= Date.now()`, the worker message triggers the proactive `TIMER_EXPIRED` event on the main thread.
+
+### Architectural Separation: Dedicated Child Actor in XState
+* **Decoupled from State Lifecycles**:
+  * In `cookingMachine`, dialogue states transition frequently (`ingredientPrep`, `stepNavigation`, `clarification`, `repair`). Native XState `after:` timers tied to state nodes would be cancelled upon step transitions.
+  * Modeling timer logic as a root-level spawned/invoked child actor (`fromCallback`) ensures active timers survive all recipe navigation and conversational turns.
+* **Zero Log Pollution**:
+  * The child actor absorbs 1Hz worker ticks privately, shielding `cookingMachine`'s transition log from 60 unnecessary state evaluations per minute and communicating only on lifecycle events (`START_TIMER`, `CANCEL_TIMER`, `TIMER_EXPIRED`).
+
 
 
 
