@@ -14,7 +14,7 @@ const systemTranscriptEl = document.querySelector<HTMLElement>('#system-transcri
 const dmActor = createActor(cookingMachine).start();
 
 dmActor.subscribe((snapshot) => {
-  console.group('[CookingCopilot] State Transition');
+  console.group('[Cookmate] State Transition');
   console.log('Value:', snapshot.value);
   console.log('Last Spoken:', snapshot.context.lastSpokenUtterance);
   console.groupEnd();

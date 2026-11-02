@@ -5,7 +5,7 @@ import { DIALOGUE_ACTS } from './semantic-parser/constants';
 const SPOKEN_RESPONSE_RULES = `Answer in 1-2 plain sentences strictly under ${MAX_SPOKEN_WORDS} words. No markdown, lists, or filler. Never guess cooking times, temperatures, measurements, or food safety advice—if uncertain, say so simply.`;
 
 /**
- * centralized prompt registry for the Interactive Cooking Copilot.
+ * centralized prompt registry for Cookmate.
  * contains system instructions for semantic parsing, RAG response synthesis, and conversation handling.
  */
 export default {

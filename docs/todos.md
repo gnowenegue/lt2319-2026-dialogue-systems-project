@@ -1,4 +1,4 @@
-# Interactive Cooking Copilot — Project Roadmap
+# Cookmate — Project Roadmap
 
 ## Architecture Overview
 

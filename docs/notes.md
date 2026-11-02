@@ -1,6 +1,6 @@
 # Architectural & Design Notes
 
-This document records key design decisions, tradeoffs, and domain-specific considerations for the Interactive Cooking Copilot.
+This document records key design decisions, tradeoffs, and domain-specific considerations for Cookmate.
 
 ---
 
