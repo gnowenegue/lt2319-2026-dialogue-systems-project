@@ -1,6 +1,7 @@
 import { env, type FeatureExtractionPipeline, pipeline } from '@huggingface/transformers';
 import { QdrantClient } from '@qdrant/js-client-rest';
 
+import { getEnv } from '../configs';
 import {
   CULINARY_COLLECTION,
   DEFAULT_QDRANT_PORT,
@@ -12,22 +13,15 @@ import {
 import type { RagCategory, RagQueryOptions } from './types';
 
 // configure offline model directory for `rag-cli` vs browser
-if (typeof window === 'undefined' && typeof process !== 'undefined' && process.cwd) {
-  env.localModelPath = `${process.cwd()}/public/models`;
+if (globalThis.process?.cwd) {
+  env.localModelPath = `${globalThis.process.cwd()}/public/models`;
 } else {
   env.localModelPath = '/models';
 }
 env.allowRemoteModels = false;
 
-const qdrantUrl =
-  import.meta.env?.VITE_QDRANT_URL ||
-  (typeof process !== 'undefined' ? process.env?.VITE_QDRANT_URL : undefined) ||
-  DEFAULT_QDRANT_URL;
-const qdrantPort =
-  Number(
-    import.meta.env?.VITE_QDRANT_PORT ||
-      (typeof process !== 'undefined' ? process.env?.VITE_QDRANT_PORT : undefined),
-  ) || DEFAULT_QDRANT_PORT;
+const qdrantUrl = getEnv('VITE_QDRANT_URL', DEFAULT_QDRANT_URL);
+const qdrantPort = Number(getEnv('VITE_QDRANT_PORT')) || DEFAULT_QDRANT_PORT;
 
 /**
  * shared Qdrant client instance for browser and CLI usage

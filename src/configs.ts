@@ -2,8 +2,16 @@ import type { Settings } from 'speechstate';
 
 import { REGION } from './constants';
 
-const speechRegion = import.meta.env.VITE_AZURE_SPEECH_REGION || REGION;
-const speechKey = import.meta.env.VITE_AZURE_SPEECH_KEY || '';
+/**
+ * retrieves an environment variable from `import.meta.env` (Vite) or `process.env` (Node)
+ */
+const getEnv = (key: string, fallback = ''): string => {
+  const metaEnv = import.meta.env as Record<string, string | undefined> | undefined;
+  return metaEnv?.[key] || globalThis.process?.env?.[key] || fallback;
+};
+
+const speechRegion = getEnv('VITE_AZURE_SPEECH_REGION', REGION);
+const speechKey = getEnv('VITE_AZURE_SPEECH_KEY');
 
 /**
  * Azure Speech API token issuance endpoint and authentication key
@@ -26,4 +34,4 @@ const settings: Settings = {
   bargeIn: false,
 };
 
-export { azureCredentials, settings };
+export { azureCredentials, getEnv, settings };

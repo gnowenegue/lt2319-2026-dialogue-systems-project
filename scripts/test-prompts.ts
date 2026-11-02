@@ -10,7 +10,7 @@ import { refineRecipeWithLLM } from '../src/recipes/refiner';
 import { parseUtterance } from '../src/semantic-parser/parser';
 
 // load local .env credentials for Node CLI execution
-if (typeof process !== 'undefined' && process.loadEnvFile && existsSync('.env')) {
+if (process.loadEnvFile && existsSync('.env')) {
   try {
     process.loadEnvFile();
   } catch (error) {
