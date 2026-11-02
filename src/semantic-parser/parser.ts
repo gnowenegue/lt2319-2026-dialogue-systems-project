@@ -1,7 +1,7 @@
 import { ACTIVE_LLM_MODEL, openai } from '../llm';
 import prompts from '../prompts';
 import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
-import type { DialogueAct, ParserOptions, SemanticParseResult } from './types';
+import type { DialogueAct, Entities, ParserOptions, SemanticParseResult } from './types';
 
 /**
  * runtime type guard validating whether a value matches a supported `DialogueAct`
@@ -36,10 +36,31 @@ export const parseUtterance = async (
       temperature: SEMANTIC_PARSER_TEMPERATURE,
     });
 
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    const content = completion.choices[0]?.message?.content ?? '{}';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
     const act = isDialogueAct(parsed.act) ? parsed.act : 'UNKNOWN';
-    const entities =
+    const rawEntities =
       typeof parsed.entities === 'object' && parsed.entities !== null ? parsed.entities : undefined;
+
+    const entities: Entities | undefined = rawEntities
+      ? {
+          ingredient:
+            typeof rawEntities.ingredient === 'string' ? rawEntities.ingredient.trim() : undefined,
+          stepNumber:
+            rawEntities.stepNumber !== undefined && !Number.isNaN(Number(rawEntities.stepNumber))
+              ? Number(rawEntities.stepNumber)
+              : undefined,
+          query: typeof rawEntities.query === 'string' ? rawEntities.query.trim() : undefined,
+          durationSeconds:
+            rawEntities.durationSeconds !== undefined &&
+            !Number.isNaN(Number(rawEntities.durationSeconds))
+              ? Number(rawEntities.durationSeconds)
+              : undefined,
+          timerLabel:
+            typeof rawEntities.timerLabel === 'string' ? rawEntities.timerLabel.trim() : undefined,
+        }
+      : undefined;
 
     return {
       act,
