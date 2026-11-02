@@ -31,7 +31,8 @@ const settings: Settings = {
   asrDefaultNoInputTimeout: 5000,
   locale: 'en-US',
   ttsDefaultVoice: 'en-US-DavisNeural',
-  bargeIn: false,
+  ttsDefaultSpeechRate: 1.15,
+  bargeIn: {},
 };
 
 export { azureCredentials, getEnv, settings };
