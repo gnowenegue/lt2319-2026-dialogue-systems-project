@@ -24,6 +24,8 @@ export function extractIngredients(meal: MealDBMeal): RecipeIngredient[] {
   return ingredients;
 }
 
+const MINUTES_RE = /\b(\d+)\s*(?:mins?|minutes?)\b/i;
+
 /**
  * split raw instructions into sentence-level steps and detect cooking times in minutes
  */
@@ -35,7 +37,7 @@ export function extractSteps(instructions: string): RecipeStep[] {
     .filter(Boolean);
 
   return sentences.map((instruction, index) => {
-    const match = instruction.match(/(\d+)\s?min/i);
+    const match = MINUTES_RE.exec(instruction);
     const minutes = match ? Number(match[1]) : undefined;
 
     return {

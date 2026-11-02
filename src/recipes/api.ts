@@ -1,26 +1,35 @@
-import { type RefinerOptions, refineRecipeWithLLM } from './refiner';
+import { refineRecipeWithLLM } from './refiner';
 import type {
   MealDBFilterResponse,
   MealDBMeal,
   MealDBResponse,
   MealDBSummary,
   NormalizedRecipe,
+  RefinerOptions,
 } from './types';
 
 const BASE_URL = 'https://www.themealdb.com/api/json/v1/1';
 const refinedRecipeCache = new Map<string, NormalizedRecipe>();
 
 // helper function to send HTTP requests to TheMealDB and parse JSON responses with descriptive errors
-async function fetchFromMealDB<T>(endpoint: string): Promise<T> {
+async function fetchFromMealDB<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+  const url = new URL(`${BASE_URL}/${endpoint}`);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+  }
+
   try {
-    const response = await fetch(`${BASE_URL}/${endpoint}`);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     return await response.json();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`TheMealDB request failed (${endpoint}): ${message}`);
+    const target = params ? `${endpoint}?${url.searchParams.toString()}` : endpoint;
+    throw new Error(`TheMealDB request failed (${target}): ${message}`);
   }
 }
 
@@ -28,8 +37,9 @@ async function fetchFromMealDB<T>(endpoint: string): Promise<T> {
  * search meals by full or partial name (e.g. `searchMealsByName("Arrabiata")`)
  */
 export async function searchMealsByName(name: string): Promise<MealDBMeal[]> {
-  const encoded = encodeURIComponent(name.trim());
-  const data = await fetchFromMealDB<MealDBResponse>(`search.php?s=${encoded}`);
+  const data = await fetchFromMealDB<MealDBResponse>('search.php', {
+    s: name.trim(),
+  });
   return data.meals ?? [];
 }
 
@@ -37,8 +47,9 @@ export async function searchMealsByName(name: string): Promise<MealDBMeal[]> {
  * look up full meal details by ID (e.g. `getMealById("52771")`)
  */
 export async function getMealById(id: string): Promise<MealDBMeal | null> {
-  const encoded = encodeURIComponent(id.trim());
-  const data = await fetchFromMealDB<MealDBResponse>(`lookup.php?i=${encoded}`);
+  const data = await fetchFromMealDB<MealDBResponse>('lookup.php', {
+    i: id.trim(),
+  });
   return data.meals?.[0] ?? null;
 }
 
@@ -57,8 +68,9 @@ export async function getRandomMeal(): Promise<MealDBMeal | null> {
  * @note currently unused in the dialogue manager; retained for complete TheMealDB API coverage.
  */
 export async function filterMealsByIngredient(ingredient: string): Promise<MealDBSummary[]> {
-  const encoded = encodeURIComponent(ingredient.trim().replace(/\s+/g, '_'));
-  const data = await fetchFromMealDB<MealDBFilterResponse>(`filter.php?i=${encoded}`);
+  const data = await fetchFromMealDB<MealDBFilterResponse>('filter.php', {
+    i: ingredient.trim().replace(/\s+/g, '_'),
+  });
   return data.meals ?? [];
 }
 
@@ -68,8 +80,9 @@ export async function filterMealsByIngredient(ingredient: string): Promise<MealD
  * @note currently unused in the dialogue manager; retained for complete TheMealDB API coverage.
  */
 export async function filterMealsByCategory(category: string): Promise<MealDBSummary[]> {
-  const encoded = encodeURIComponent(category.trim());
-  const data = await fetchFromMealDB<MealDBFilterResponse>(`filter.php?c=${encoded}`);
+  const data = await fetchFromMealDB<MealDBFilterResponse>('filter.php', {
+    c: category.trim(),
+  });
   return data.meals ?? [];
 }
 
