@@ -1,7 +1,7 @@
 import { DEFAULT_PRE_ROLL_CAPACITY } from './constants';
 
 /**
- * `CircularAudioBuffer` (ring buffer) for rolling audio history.
+ * rolling circular audio buffer (ring buffer) for audio history.
  * keeps a rolling window of recent PCM audio samples in memory (e.g. 500ms pre-roll).
  * optimized for 16 kHz 16-bit mono PCM (`Int16Array`).
  * when the buffer fills up, new samples overwrite the oldest ones in a continuous loop.
@@ -9,11 +9,13 @@ import { DEFAULT_PRE_ROLL_CAPACITY } from './constants';
  */
 export class CircularAudioBuffer {
   private buffer: Int16Array;
-  private head = 0; // index in the array where the next sample will be written
-  private count = 0; // total number of valid audio samples currently stored in the buffer
+  // write pointer indexing the next sample location
+  private head = 0;
+  // total count of valid audio samples currently held in the buffer
+  private count = 0;
 
   /**
-   * @param capacity maximum number of samples to hold (defaults to `DEFAULT_PRE_ROLL_CAPACITY`).
+   * initializes the circular ring buffer with the target PCM sample capacity
    */
   constructor(public readonly capacity: number = DEFAULT_PRE_ROLL_CAPACITY) {
     if (capacity <= 0) {

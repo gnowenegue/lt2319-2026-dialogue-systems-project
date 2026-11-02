@@ -1,5 +1,5 @@
 /**
- * `AudioWorkletProcessor` for slicing microphone audio into 16 kHz PCM chunks.
+ * audio worklet processor for slicing microphone audio into 16 kHz PCM chunks.
  * runs in the browser dedicated audio rendering thread, accumulates 32-bit float audio,
  * converts samples to 16-bit signed PCM, and posts configured PCM chunks to the main thread.
  */
@@ -47,7 +47,8 @@ class PcmChunkProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const channelData = input[0]; // grab the first audio channel for mono microphone input
+    // grab the first audio channel for mono microphone input
+    const channelData = input[0];
     const inputLength = channelData.length;
 
     let offset = 0;

@@ -9,8 +9,6 @@ import type {
 } from './types';
 
 /**
- * `AudioPipeline`
- *
  * captures microphone audio via Web Audio API, downsamples to 16 kHz mono PCM,
  * maintains an in-memory 500ms pre-roll circular buffer, and continuously emits
  * 80ms (1,280-sample) PCM frames to subscribers (e.g. openWakeWord, Azure push stream).
