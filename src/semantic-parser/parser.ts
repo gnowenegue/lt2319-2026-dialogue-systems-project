@@ -1,16 +1,7 @@
-import type OpenAI from 'openai';
 import { ACTIVE_LLM_MODEL, openai } from '../llm';
 import prompts from '../prompts';
 import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
-import type { DialogueAct, SemanticParseResult } from './types';
-
-/**
- * options for semantic parsing specifying an optional LLM client and model identifier
- */
-export interface ParserOptions {
-  client?: OpenAI;
-  model?: string;
-}
+import type { DialogueAct, ParserOptions, SemanticParseResult } from './types';
 
 /**
  * runtime type guard validating whether a value matches a supported `DialogueAct`

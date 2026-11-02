@@ -1,3 +1,5 @@
+import type OpenAI from 'openai';
+
 /*
  * external API types derived directly from TheMealDB REST responses
  */
@@ -95,4 +97,12 @@ export interface NormalizedRecipe {
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   totalEstimatedMinutes?: number;
+}
+
+/**
+ * options for recipe refinement specifying an optional LLM client and model identifier
+ */
+export interface RefinerOptions {
+  client?: OpenAI;
+  model?: string;
 }

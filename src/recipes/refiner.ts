@@ -1,17 +1,16 @@
-import type OpenAI from 'openai';
 import { ACTIVE_REFINER_MODEL, openai } from '../llm';
 import prompts from '../prompts';
 import { REFINER_TEMPERATURE } from './constants';
 import { calculateTotalMinutes, normalizeMealDBRecipe } from './normalizer';
-import type { MealDBMeal, NormalizedRecipe, RecipeIngredient, RecipeStep } from './types';
+import type {
+  MealDBMeal,
+  NormalizedRecipe,
+  RecipeIngredient,
+  RecipeStep,
+  RefinerOptions,
+} from './types';
 
-/**
- * options for recipe refinement specifying an optional LLM client and model identifier
- */
-export interface RefinerOptions {
-  client?: OpenAI;
-  model?: string;
-}
+export type { RefinerOptions };
 
 // parses and formats ingredients returned by the LLM
 function parseRefinedIngredients(ingredients?: Partial<RecipeIngredient>[]): RecipeIngredient[] {

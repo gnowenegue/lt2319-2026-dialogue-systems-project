@@ -1,4 +1,13 @@
+import type OpenAI from 'openai';
 import type { DIALOGUE_ACTS } from './constants';
+
+/**
+ * options for semantic parsing specifying an optional LLM client and model identifier
+ */
+export interface ParserOptions {
+  client?: OpenAI;
+  model?: string;
+}
 
 /**
  * supported dialogue acts representing the user's communicative intent.
