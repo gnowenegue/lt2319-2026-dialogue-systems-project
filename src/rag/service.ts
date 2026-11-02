@@ -32,13 +32,19 @@ export const qdrantClient = new QdrantClient({
   checkCompatibility: false,
 });
 
-// lazy load the embedding pipeline once
+// lazy load the embedding pipeline once with retry on rejection
 let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
 const getExtractor = (): Promise<FeatureExtractionPipeline> => {
   if (!extractorPromise) {
-    extractorPromise = pipeline('feature-extraction', EMBEDDING_MODEL, {
-      dtype: 'q8',
-    }) as Promise<FeatureExtractionPipeline>;
+    extractorPromise = (
+      pipeline('feature-extraction', EMBEDDING_MODEL, {
+        dtype: 'q8',
+      }) as Promise<FeatureExtractionPipeline>
+    ).catch((error) => {
+      // reset promise to null so subsequent attempts can retry
+      extractorPromise = null;
+      throw error;
+    });
   }
   return extractorPromise;
 };
@@ -104,7 +110,9 @@ const queryCulinaryKnowledge = async (
   // log debug details to the console
   console.debug(`[RAG] "${trimmed}" matched ${points.length} points:`, points);
 
-  const texts = points.map((point) => point.payload?.text).filter(Boolean) as string[];
+  const texts = points
+    .map((point) => point.payload?.text)
+    .filter((text): text is string => typeof text === 'string' && text.length > 0);
 
   return texts.length > 0
     ? texts.join('\n\n')
