@@ -1,4 +1,5 @@
 import { refineRecipeWithLLM } from './refiner';
+import { clearRecipeStorage, getRecipeFromStorage, saveRecipeToStorage } from './storage';
 import type {
   MealDBFilterResponse,
   MealDBMeal,
@@ -87,24 +88,34 @@ export async function filterMealsByCategory(category: string): Promise<MealDBSum
 }
 
 /**
- * resets the in-memory cache of refined recipes (useful in tests and session resets)
+ * resets the in-memory cache and persistent localStorage of refined recipes
  */
 export function clearRefinedRecipeCache(): void {
   refinedRecipeCache.clear();
+  clearRecipeStorage();
 }
 
 /**
  * fetches full meal details from TheMealDB and refines them via LLM.
- * returns a cached `NormalizedRecipe` if previously refined during this session.
+ * returns a cached `NormalizedRecipe` from in-memory cache or persistent storage if available.
  */
 export async function getRefinedRecipe(
   id: string,
   options?: RefinerOptions,
 ): Promise<NormalizedRecipe | null> {
   const normalizedId = id.trim();
-  const cached = refinedRecipeCache.get(normalizedId);
-  if (cached) {
-    return cached;
+
+  // check in-memory cache first for instant synchronous access
+  const memoryCached = refinedRecipeCache.get(normalizedId);
+  if (memoryCached) {
+    return memoryCached;
+  }
+
+  // check persistent browser storage fallback
+  const storageCached = getRecipeFromStorage(normalizedId);
+  if (storageCached) {
+    refinedRecipeCache.set(normalizedId, storageCached);
+    return storageCached;
   }
 
   const meal = await getMealById(normalizedId);
@@ -114,5 +125,6 @@ export async function getRefinedRecipe(
 
   const refined = await refineRecipeWithLLM(meal, options);
   refinedRecipeCache.set(normalizedId, refined);
+  saveRecipeToStorage(normalizedId, refined);
   return refined;
 }
