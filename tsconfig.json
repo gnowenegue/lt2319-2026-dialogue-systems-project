@@ -21,6 +21,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "scripts"],
-  "exclude": ["src/dmParallel.ts"]
+  "include": ["src", "scripts", "vitest.setup.ts", "vite.config.ts"]
 }
