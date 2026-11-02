@@ -7,7 +7,34 @@
     <title>Vite + TS</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <h1>Cooking Dialogue Copilot</h1>
+      <div class="card">
+        <button id="start-btn" type="button" class="primary-btn">
+          Start Cooking
+        </button>
+
+        <div id="status-card" class="status-card">
+          <div class="status-header">
+            <span class="badge" id="machine-state">Idle</span>
+            <span class="recipe-info" id="recipe-progress">No active recipe</span>
+          </div>
+
+          <div id="timers-container" class="timers-list" style="display: none;"></div>
+
+          <div class="transcript-box">
+            <div class="message-row user-row">
+              <span class="speaker-label">User:</span>
+              <p id="user-transcript" class="speech-bubble user-bubble"><em>(Awaiting voice input...)</em></p>
+            </div>
+            <div class="message-row system-row">
+              <span class="speaker-label">Assistant:</span>
+              <p id="system-transcript" class="speech-bubble system-bubble"><em>(Ready)</em></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

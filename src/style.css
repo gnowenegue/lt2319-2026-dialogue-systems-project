@@ -59,6 +59,95 @@ h1 {
   padding: 2em;
 }
 
+.primary-btn {
+  font-size: 1.1em;
+  padding: 0.8em 1.6em;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.status-card {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background-color: #646cff;
+  color: #fff;
+}
+
+.recipe-info {
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+.timers-list {
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background-color: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  font-size: 0.9em;
+}
+
+.transcript-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.message-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.speaker-label {
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.speech-bubble {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+.user-bubble {
+  background-color: rgba(100, 108, 255, 0.15);
+  border-left: 3px solid #646cff;
+}
+
+.system-bubble {
+  background-color: rgba(76, 175, 80, 0.15);
+  border-left: 3px solid #4caf50;
+}
+
 .read-the-docs {
   color: #888;
 }
