@@ -10,23 +10,23 @@ import type {
   RefinerOptions,
 } from './types';
 
-export type { RefinerOptions };
-
 // parses and formats ingredients returned by the LLM
 function parseRefinedIngredients(ingredients?: Partial<RecipeIngredient>[]): RecipeIngredient[] {
   if (!Array.isArray(ingredients)) {
     return [];
   }
 
-  return ingredients
-    .filter((item) => Boolean(item.name?.trim()))
-    .map((item) => {
-      const name = item.name?.trim() ?? '';
-      const measure = item.measure?.trim() ?? '';
-      const text = item.text?.trim() || (measure ? `${measure} ${name}` : name);
+  return ingredients.flatMap((item) => {
+    const name = item.name?.trim();
+    if (!name) {
+      return [];
+    }
 
-      return { name, measure, text };
-    });
+    const measure = item.measure?.trim() ?? '';
+    const text = item.text?.trim() || (measure ? `${measure} ${name}` : name);
+
+    return [{ name, measure, text }];
+  });
 }
 
 // parses and indexes cooking steps returned by the LLM
@@ -35,15 +35,16 @@ function parseRefinedSteps(steps?: Partial<RecipeStep>[]): RecipeStep[] {
     return [];
   }
 
-  return steps
-    .filter((item) => Boolean(item.instruction?.trim()))
-    .map((item, index) => {
-      const instruction = item.instruction?.trim() ?? '';
-      const stepNumber = item.stepNumber ?? index + 1;
-      const estimatedMinutes = item.estimatedMinutes;
+  const validSteps = steps.flatMap((item) => {
+    const instruction = item.instruction?.trim();
+    return instruction ? [{ ...item, instruction }] : [];
+  });
 
-      return { stepNumber, instruction, estimatedMinutes };
-    });
+  return validSteps.map((item, index) => ({
+    stepNumber: item.stepNumber ?? index + 1,
+    instruction: item.instruction,
+    estimatedMinutes: item.estimatedMinutes,
+  }));
 }
 
 /**

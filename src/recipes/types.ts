@@ -1,8 +1,6 @@
 import type OpenAI from 'openai';
 
-/*
- * external API types derived directly from TheMealDB REST responses
- */
+// external API types derived directly from TheMealDB REST responses
 
 /**
  * raw recipe payload returned by TheMealDB search (`search.php`) and lookup (`lookup.php`) endpoints.
@@ -54,9 +52,7 @@ export interface MealDBFilterResponse {
   meals: MealDBSummary[] | null;
 }
 
-/*
- * internal types designed for the dialogue manager, culinary RAG, and dashboard UI
- */
+// internal types designed for the dialogue manager, culinary RAG, and dashboard UI
 
 /**
  * clean, structured ingredient representation used in our dialogue state and UI.
