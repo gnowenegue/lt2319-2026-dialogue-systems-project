@@ -30,7 +30,7 @@ export function formatPrepBatchUtterance(
     return `Lastly: ${itemsText}. Ready to start cooking?`;
   }
 
-  return `Next: ${itemsText}.`;
+  return `Next: ${itemsText}. Got those?`;
 }
 
 /**
@@ -48,15 +48,13 @@ export function hasMorePrepBatches(
  * formats an active cooking step instruction for concise spoken delivery (<25 words)
  */
 export function formatStepUtterance(step: RecipeStep, totalSteps: number): string {
-  if (step.stepNumber === 1) {
-    return `Step 1: ${step.instruction} Say 'next' when done.`;
-  }
+  const instruction = step.instruction.trim().replace(/\.$/, '');
 
   if (step.stepNumber === totalSteps) {
-    return `Final step: ${step.instruction}`;
+    return `Final step: ${instruction}. Let me know when you're done.`;
   }
 
-  return `Step ${step.stepNumber}: ${step.instruction}`;
+  return `Step ${step.stepNumber}: ${instruction}. Let me know when you're ready.`;
 }
 
 /**

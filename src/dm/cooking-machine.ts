@@ -415,6 +415,14 @@ export const cookingMachine = setup({
         AFFIRM: 'AnnouncePrepBatch',
         SKIP_PREP: 'AnnounceStep',
         NEXT_STEP: 'AnnounceStep',
+        GOTO_STEP: {
+          guard: 'isValidStepNumber',
+          actions: assign({
+            currentStepIndex: ({ event }) =>
+              event.type === 'GOTO_STEP' ? event.stepNumber - 1 : 0,
+          }),
+          target: 'AnnounceStep',
+        },
         DENY: 'PromptRecipe',
       },
     },
@@ -461,6 +469,14 @@ export const cookingMachine = setup({
         },
         REPEAT_STEP: 'AnnouncePrepBatch',
         SKIP_PREP: 'AnnounceStep',
+        GOTO_STEP: {
+          guard: 'isValidStepNumber',
+          actions: assign({
+            currentStepIndex: ({ event }) =>
+              event.type === 'GOTO_STEP' ? event.stepNumber - 1 : 0,
+          }),
+          target: 'AnnounceStep',
+        },
       },
     },
 

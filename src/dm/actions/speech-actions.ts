@@ -12,13 +12,17 @@ export const speechActions = {
       });
     }
   },
-  'spst.speak': ({ context }: { context: CookingContext }, params: { utterance: string }) => {
+  'spst.speak': (
+    { context }: { context: CookingContext },
+    params: { utterance: string; bargeIn?: boolean },
+  ) => {
     // notify SpeechState ASR/TTS actor if initialized
     if (context.spstRef) {
       context.spstRef.send({
         type: 'SPEAK',
         value: {
           utterance: params.utterance,
+          ...(params.bargeIn !== undefined ? { bargeIn: params.bargeIn } : {}),
         },
       });
     }

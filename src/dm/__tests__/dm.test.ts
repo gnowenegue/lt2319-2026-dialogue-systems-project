@@ -1,8 +1,10 @@
 import type { speechstate } from 'speechstate';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createActor, fromPromise, fromTransition } from 'xstate';
+import { openai } from '../../llm';
 import prompts from '../../prompts';
 import type { NormalizedRecipe } from '../../recipes/types';
+import { handleRecognisedAction } from '../actions/handle-recognised';
 import { cookingMachine } from '../cooking-machine';
 import { buildDebugReport } from '../debug-report';
 import {
@@ -13,6 +15,7 @@ import {
   hasMorePrepBatches,
   lookupIngredient,
 } from '../helpers';
+import type { CookingContext, CookingEvent } from '../types';
 
 const mockArrabiataRecipe: NormalizedRecipe = {
   id: '52771',
@@ -282,6 +285,120 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     // invalid step jump is guarded and ignored
     actor.send({ type: 'GOTO_STEP', stepNumber: 99 });
     expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+  });
+
+  it('allows jumping directly to a step via GOTO_STEP during ingredient preparation', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    actor.send({ type: 'AFFIRM' });
+
+    // actor is now in WaitingForPrepConfirmation
+    expect(actor.getSnapshot().value).toBe('WaitingForPrepConfirmation');
+
+    // jump directly to step 4 (last step)
+    actor.send({ type: 'GOTO_STEP', stepNumber: 4 });
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(3);
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain(
+      'Final step: Toss cooked penne with sauce',
+    );
+  });
+
+  it('resolves relative last step to the recipe total steps in handleRecognisedAction', async () => {
+    vi.spyOn(openai.chat.completions, 'create').mockResolvedValueOnce({
+      id: 'mock-1',
+      choices: [
+        {
+          finish_reason: 'stop',
+          index: 0,
+          logprobs: null,
+          message: {
+            role: 'assistant',
+            content: JSON.stringify({ act: 'GOTO_STEP', entities: { stepNumber: -1 } }),
+            refusal: null,
+          },
+        },
+      ],
+      created: Date.now(),
+      model: 'mock-model',
+      object: 'chat.completion',
+    });
+
+    const sentEvents: CookingEvent[] = [];
+    const mockContext = {
+      recipe: mockArrabiataRecipe,
+      messages: [],
+    } as unknown as CookingContext;
+
+    const mockSelf = {
+      send: (ev: CookingEvent) => sentEvents.push(ev),
+      getSnapshot: () => ({ can: () => true }),
+    };
+
+    await handleRecognisedAction({
+      context: mockContext,
+      self: mockSelf,
+      event: {
+        type: 'RECOGNISED',
+        value: [{ utterance: 'Can we go to the last step?', confidence: 0.95 }],
+      },
+    });
+
+    // should have resolved and sent GOTO_STEP with stepNumber 4 (last step of 4 total steps)
+    const gotoEvent = sentEvents.find((e) => e.type === 'GOTO_STEP');
+    expect(gotoEvent).toBeDefined();
+    expect(gotoEvent).toEqual({ type: 'GOTO_STEP', stepNumber: 4 });
+  });
+
+  it('normalizes prep-skipping utterance to SKIP_PREP in handleRecognisedAction', async () => {
+    vi.spyOn(openai.chat.completions, 'create').mockResolvedValueOnce({
+      id: 'mock-2',
+      choices: [
+        {
+          finish_reason: 'stop',
+          index: 0,
+          logprobs: null,
+          message: {
+            role: 'assistant',
+            content: JSON.stringify({ act: 'AFFIRM' }),
+            refusal: null,
+          },
+        },
+      ],
+      created: Date.now(),
+      model: 'mock-model',
+      object: 'chat.completion',
+    });
+
+    const sentEvents: CookingEvent[] = [];
+    const mockContext = {
+      recipe: mockArrabiataRecipe,
+      messages: [],
+    } as unknown as CookingContext;
+
+    const mockSelf = {
+      send: (ev: CookingEvent) => sentEvents.push(ev),
+      getSnapshot: () => ({ can: () => true }),
+    };
+
+    await handleRecognisedAction({
+      context: mockContext,
+      self: mockSelf,
+      event: {
+        type: 'RECOGNISED',
+        value: [
+          { utterance: "Actually, I have everything. Let's start cooking", confidence: 0.95 },
+        ],
+      },
+    });
+
+    const skipPrepEvent = sentEvents.find((e) => e.type === 'SKIP_PREP');
+    expect(skipPrepEvent).toBeDefined();
+    expect(skipPrepEvent).toEqual({ type: 'SKIP_PREP' });
   });
 
   it('prepares speechstate and advances to PromptRecipe upon ASRTTS_READY on user click', () => {

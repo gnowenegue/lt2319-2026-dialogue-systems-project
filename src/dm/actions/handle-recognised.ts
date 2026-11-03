@@ -61,9 +61,18 @@ export async function handleRecognisedAction({
     case 'REPEAT_STEP':
       eventToSend = { type: 'REPEAT_STEP' };
       break;
-    case 'GOTO_STEP':
-      eventToSend = { type: 'GOTO_STEP', stepNumber: Number(parsed.entities?.stepNumber) || 1 };
+    case 'GOTO_STEP': {
+      let targetStep = parsed.entities?.stepNumber;
+      if (targetStep === -1 || (!targetStep && /\b(last|final|end)\b/i.test(utterance))) {
+        targetStep = context?.recipe?.steps.length ?? 1;
+      }
+      if (typeof targetStep === 'number' && !Number.isNaN(targetStep) && targetStep >= 1) {
+        eventToSend = { type: 'GOTO_STEP', stepNumber: targetStep };
+      } else {
+        eventToSend = { type: 'UNKNOWN' };
+      }
       break;
+    }
     case 'QUERY_INGREDIENT':
       eventToSend = { type: 'QUERY_INGREDIENT', ingredient: parsed.entities?.ingredient };
       break;
