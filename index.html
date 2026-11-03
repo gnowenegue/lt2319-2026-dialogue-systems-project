@@ -9,32 +9,72 @@
   </head>
   <body>
     <div id="app">
-      <h1>Cookmate</h1>
-      <div class="card">
+      <header class="app-header">
+        <h1>Cookmate</h1>
+        <p class="tagline">Hands-free voice cooking assistant</p>
+      </header>
+
+      <main class="main-container">
         <button id="start-btn" type="button" class="primary-btn">
           Start Cooking
         </button>
 
         <div id="status-card" class="status-card">
+          <!-- Top bar with state and recipe progress -->
           <div class="status-header">
             <span class="badge" id="machine-state">Idle</span>
             <span class="recipe-info" id="recipe-progress">No active recipe</span>
           </div>
 
-          <div id="timers-container" class="timers-list" style="display: none;"></div>
-
-          <div class="transcript-box">
-            <div class="message-row user-row">
-              <span class="speaker-label">User:</span>
-              <p id="user-transcript" class="speech-bubble user-bubble"><em>(Awaiting voice input...)</em></p>
+          <!-- Prominent Voice Hero Banner (Enhancement 1 & Ambient Glow) -->
+          <div id="voice-hero-banner" class="voice-hero-banner state-idle" role="status" aria-live="polite">
+            <div class="voice-visualizer">
+              <div class="visualizer-graphic">
+                <span class="viz-elem elem-1"></span>
+                <span class="viz-elem elem-2"></span>
+                <span class="viz-elem elem-3"></span>
+                <span class="viz-elem elem-4"></span>
+              </div>
             </div>
-            <div class="message-row system-row">
-              <span class="speaker-label">Assistant:</span>
-              <p id="system-transcript" class="speech-bubble system-bubble"><em>(Ready)</em></p>
+            <div class="voice-hero-text">
+              <span id="voice-hero-title" class="voice-hero-title">STANDBY</span>
+              <span id="voice-hero-subtitle" class="voice-hero-subtitle">Press "Start Cooking" to begin</span>
             </div>
           </div>
+
+          <!-- Active timers container -->
+          <div id="timers-container" class="timers-list" style="display: none;"></div>
+
+          <!-- Utility action toolbar (Debug logs export) -->
+          <div class="card-toolbar">
+            <button id="copy-debug-btn" type="button" class="utility-btn" title="Copy current session state and logs to clipboard">
+              <span id="copy-btn-icon" class="btn-icon">📋</span>
+              <span id="copy-btn-text">Copy Debug Info</span>
+            </button>
+          </div>
+
+          <!-- Collapsible System Prompt Banner (Option A) -->
+          <details id="system-prompt-details" class="system-prompt-card">
+            <summary class="system-prompt-summary">
+              <span class="system-badge">⚙️ SYSTEM PROMPT</span>
+              <span class="toggle-hint">Tap to toggle</span>
+            </summary>
+            <div class="system-prompt-content" id="system-prompt-text"></div>
+          </details>
+
+          <!-- Scrollable Full Conversation History Feed -->
+          <section
+            id="chat-history"
+            class="chat-history-container"
+            aria-label="Conversation History"
+            role="log"
+            aria-live="polite"
+            tabindex="0"
+          >
+            <!-- Messages dynamically populated from snapshot.context.messages -->
+          </section>
         </div>
-      </div>
+      </main>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
