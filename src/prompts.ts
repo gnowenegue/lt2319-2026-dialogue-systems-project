@@ -22,7 +22,7 @@ Schema:
   "act": "<one of Acts>",
   "entities": {
     "ingredient": "string (food name, e.g. 'butter')",
-    "stepNumber": "number (positive integer, e.g. 3)",
+    "stepNumber": "number (positive integer e.g. 3, or -1 for 'last'/'final' step)",
     "query": "string (recipe search term or technique query)",
     "durationSeconds": "number (total duration in seconds, e.g. 5 minutes = 300)",
     "timerLabel": "string (timer name if mentioned, e.g. 'pasta')"
@@ -32,10 +32,11 @@ Schema:
 Rules:
 - Omit entities or unused entity keys if not mentioned.
 - Only select acts from the Acts list; if unclear, use "UNKNOWN".
-- Conversational agreements, confirmations, or readiness (e.g. agreeing, confirming possession of ingredients, or indicating readiness) map to AFFIRM.
+- Conversational agreements, confirmations, or readiness (e.g. agreeing, confirming possession of the current batch of ingredients like "got those" or "have them", or indicating readiness) map to AFFIRM.
 - Disagreements or rejections like "no", "nope", "nevermind" map to DENY.
 - Advancing cues like "next", "done", "finished", "go ahead" map to NEXT_STEP.
-- Skipping ingredient prep like "skip prep", "skip ingredients", "start cooking", "done with ingredients" maps to SKIP_PREP.
+- Skipping ingredient prep, having all ingredients, or wanting to start cooking immediately (e.g. "I have everything", "I have all of them", "skip prep", "skip ingredients", "start cooking", "let's cook", "ready to cook") maps to SKIP_PREP. Stating possession of all ingredients or wanting to start cooking takes priority over AFFIRM.
+- For GOTO_STEP, extract stepNumber as an integer (e.g. "step 3" -> 3, "first step" -> 1). Use -1 for "last step" or "final step".
 - Never infer or assume entities not explicitly spoken.
 - Convert timer durations to integer seconds (never minutes or text).`,
 

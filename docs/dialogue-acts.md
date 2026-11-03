@@ -30,7 +30,8 @@ Commands that advance, rewind, or inspect steps during an active cooking session
 | `NEXT_STEP` | Advances to the next sequential instruction. | *"Next"*, *"What's next?"*, *"Done"*, *"Finished chopping"* | None | `RECIPE_NAV` |
 | `PREVIOUS_STEP` | Returns to the prior instruction. | *"Go back"*, *"Previous step"*, *"Wait, go back"* | None | `RECIPE_NAV` |
 | `REPEAT_STEP` | Re-reads the current instruction. | *"Repeat that"*, *"What did you say?"*, *"Say again"* | None | `RECIPE_NAV` |
-| `GOTO_STEP` | Jumps directly to a specific step number. | *"Jump to step 3"*, *"Go to step 5"*, *"Step 2"* | `stepNumber` | `RECIPE_NAV` |
+| `GOTO_STEP` | Jumps directly to a specific step number or relative boundary. | *"Jump to step 3"*, *"Go to step 5"*, *"Can we go to the last step?"*, *"Step 2"* | `stepNumber` | `RECIPE_NAV` |
+| `SKIP_PREP` | Bypasses remaining ingredient gathering batches to start cooking immediately. | *"Actually, I have everything. Let's start cooking"*, *"Skip prep"*, *"I have all ingredients"* | None | `RECIPE_NAV` |
 
 ---
 
@@ -100,7 +101,7 @@ Entities are structured slots extracted from the user's speech to parameterize t
 | Entity Slot | TypeScript Type | Description | Example Values |
 | :--- | :--- | :--- | :--- |
 | `ingredient` | `string` | The primary food item or ingredient in question. | `"garlic"`, `"heavy cream"`, `"penne"` |
-| `stepNumber` | `number` | 1-indexed target step or selection index. | `1`, `3`, `5` |
+| `stepNumber` | `number` | 1-indexed target step, selection index, or `-1` for the last/final step. | `1`, `3`, `5`, `-1` |
 | `query` | `string` | Free-form search term, technique, or substitute candidate for RAG / API queries. | `"Arrabiata"`, `"sauté"`, `"oat milk"` |
 | `durationSeconds` | `number` | Normalized timer duration in seconds. | `30`, `600`, `2700` |
 | `timerLabel` | `string` | Human-readable label identifying the timer target. | `"pasta"`, `"sauce"`, `"oven"` |

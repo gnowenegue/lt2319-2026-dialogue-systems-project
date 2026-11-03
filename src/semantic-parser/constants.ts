@@ -24,6 +24,7 @@ export const DIALOGUE_ACTS = [
   'SELECT_RECIPE',
   'AFFIRM',
   'DENY',
+  'SKIP_PREP',
   'GREETING',
   'HELP',
   'UNKNOWN',
