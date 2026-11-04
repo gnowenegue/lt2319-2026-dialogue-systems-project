@@ -32,7 +32,8 @@ const MINUTES_RE = /\b(\d+)\s*(?:mins?|minutes?)\b/i;
 export function extractSteps(instructions: string): RecipeStep[] {
   if (!instructions?.trim()) return [];
 
-  const sentences = Array.from(sentenceSegmenter.segment(instructions))
+  const normalized = instructions.replace(/\r\n/g, '\n').trim();
+  const sentences = Array.from(sentenceSegmenter.segment(normalized))
     .map((s) => s.segment.trim())
     .filter(Boolean);
 

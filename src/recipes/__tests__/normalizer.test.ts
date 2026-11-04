@@ -97,6 +97,17 @@ describe('Recipe Normalizer', () => {
       expect(extractSteps('')).toEqual([]);
       expect(extractSteps('   ')).toEqual([]);
     });
+
+    it('handles multiline instructions with CRLF line endings', () => {
+      const text = 'Chop the onions.\r\nHeat the olive oil.\r\nSaute for 5 minutes.';
+      const steps = extractSteps(text);
+
+      expect(steps).toHaveLength(3);
+      expect(steps[0].instruction).toBe('Chop the onions.');
+      expect(steps[1].instruction).toBe('Heat the olive oil.');
+      expect(steps[2].instruction).toBe('Saute for 5 minutes.');
+      expect(steps[2].estimatedMinutes).toBe(5);
+    });
   });
 
   describe('normalizeMealDBRecipe', () => {
