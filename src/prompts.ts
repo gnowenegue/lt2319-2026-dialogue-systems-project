@@ -27,13 +27,14 @@ Rules:
 - INQUIRE_SUBSTITUTION: Swapping, replacing, missing ingredients, or clarifying ingredient types/varieties (e.g. "I don't have butter", "replace milk", "what kind of oil?", "what oil?"). Put food in "ingredient", question in "query".
 - INQUIRE_TECHNIQUE: Culinary definitions or how-to checks (e.g. "what does sauté mean?"). Put question in "query".
 - QUERY_INGREDIENT vs INQUIRE_SUBSTITUTION / QUERY_STEP_DETAIL: QUERY_INGREDIENT is strictly for ingredient quantities, presence, or full list ("how much salt?", "do we need butter?", "what ingredients are in this?"). Questions asking what kind/type/variety to use or about swapping/substituting are INQUIRE_SUBSTITUTION ("what kind of oil?", "which flour?"). QUERY_STEP_DETAIL is for step actions ("what heat?").
-- SEARCH_RECIPE: Naming a dish, meal, or ingredient to find or cook (e.g. "pancake", "banana pancake", "pasta", "find chicken curry"). Put food or meal name in "query".
+- SEARCH_RECIPE: Naming a dish, meal, or ingredient to find or cook. Put strictly the food, meal, or ingredient name in "query" without action verbs or search prefixes (e.g. "find chicken curry" -> "chicken curry", "how to make pancakes" -> "pancakes", "banana pancake" -> "banana pancake").
 - SELECT_RECIPE: Choosing a candidate ONLY when presented with numbered options (e.g. "the second one", "choose Alfredo", "number 1"). Put candidate number (1, 2, 3) in "stepNumber" or name in "query".
 - SET_TIMER: Convert duration to total integer seconds (e.g. 5 min -> 300).
 
 Examples:
 User: "Actually, I have everything. Let's cook" -> {"act": "SKIP_PREP"}
 User: "Banana pancake" -> {"act": "SEARCH_RECIPE", "entities": {"query": "Banana pancake"}}
+User: "How do I make chicken curry?" -> {"act": "SEARCH_RECIPE", "entities": {"query": "chicken curry"}}
 User: "Got those" -> {"act": "AFFIRM"}
 User: "Can we go to the last step?" -> {"act": "GOTO_STEP", "entities": {"stepNumber": -1}}
 User: "Let's make the second one" -> {"act": "SELECT_RECIPE", "entities": {"stepNumber": 2}}
@@ -79,7 +80,8 @@ Rules:
 1. INGREDIENTS:
 - Reconcile aliases between ingredients and steps (e.g. listed 'Bacon', step says 'pancetta' -> "Pancetta (or bacon)").
 - Add missing staple ingredients mentioned in steps (e.g. water, salt, butter for greasing) with measure "to taste" or "as needed".
-- Set 'text' to the full spoken description (e.g. "100 grams pancetta (or bacon)").
+- For garnish or serving items where measure is a usage note (e.g. 'to serve', 'for garnish', 'to taste', 'optional'), keep 'measure' intact but omit the note from 'text' for spoken gathering (e.g. name "Raspberries", measure "to serve" -> text "raspberries").
+- Set 'text' to the full spoken description for gathering (e.g. "100 grams pancetta (or bacon)").
 - Never invent ingredients not referenced in the recipe.
 
 2. STEPS:
@@ -103,6 +105,15 @@ export const SPOKEN_RESPONSES = {
   promptRecipe: 'Hi! What would you like to cook today?',
   greeting: 'Hi! Ready when you are.',
   help: 'You can ask to search for a recipe, navigate steps with next or repeat, set timers, or ask about ingredients.',
+  helpPromptRecipe:
+    "Tell me what you'd like to cook, such as quick pasta, chicken curry, or pancakes.",
+  helpConfirmRecipe: 'Say yes to start cooking, or ask to search for a different recipe.',
+  helpPrep:
+    "Say 'yes' or 'got it' when you have gathered these ingredients, or say 'skip' to jump straight into cooking.",
+  helpStep:
+    "You can say 'next step', 'repeat', 'go to step number', 'set a timer', or ask about ingredients and cooking techniques.",
+  helpCompleted:
+    "You have finished this recipe! Say 'start' or ask for another dish to cook again.",
   selectRecipeHelp:
     'Please choose a recipe by saying its number or name, or ask to search for something else.',
   selectRecipeReprompt:
@@ -113,6 +124,13 @@ export const SPOKEN_RESPONSES = {
     "Are you still there? Let me know when you're ready for the next step.",
     "I'll pause for now. Tap the microphone when you're ready to continue.",
   ],
+  recipeNotFound: 'Sorry, I could not find a recipe for that. What else would you like to cook?',
+  recipeLoadFailed: 'Sorry, I could not load that recipe. What else would you like to cook?',
+  prepWaiting: "Take your time. Say 'ready' or 'yes' when you have them.",
+  stepWaiting: "No rush. Say 'next step' whenever you're ready.",
+  stepDetailNotFound: "Sorry, I couldn't find details on that step.",
+  knowledgeNotFound: "Sorry, I couldn't find advice on that in my culinary guides.",
+  recipeCompleted: 'All steps completed. Enjoy your meal!',
 } as const;
 
 export type SystemPrompts = typeof SYSTEM_PROMPTS;

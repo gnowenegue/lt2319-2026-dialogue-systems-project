@@ -169,24 +169,39 @@ describe('Dialogue Manager - Voice Lifecycle & Speech Turn-Taking', () => {
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.cannotHear);
   });
 
-  it('handles HELP and GREETING globally without losing current state', async () => {
+  it('handles HELP and GREETING contextually without losing current state', async () => {
     const actor = createTestCookingActor();
 
     actor.send({ type: 'START' });
     actor.send({ type: 'ASRTTS_READY' });
     expect(actor.getSnapshot().value).toBe('PromptRecipe');
 
-    // ask for help
+    // ask for help in PromptRecipe
     actor.send({ type: 'HELP' });
     expect(actor.getSnapshot().value).toBe('PromptRecipe');
-    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain(
-      'navigate steps with next or repeat',
-    );
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.helpPromptRecipe);
 
-    // greeting
+    // greeting in PromptRecipe
     actor.send({ type: 'GREETING' });
     expect(actor.getSnapshot().value).toBe('PromptRecipe');
-    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe('Hi! Ready when you are.');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.promptRecipe);
+
+    // advance to step execution
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    actor.send({ type: 'SKIP_PREP' });
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+
+    // contextual help during active step
+    actor.send({ type: 'HELP' });
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(prompts.helpStep);
+
+    // contextual greeting during active step
+    actor.send({ type: 'GREETING' });
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain("We're on step 1");
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toContain("Say 'next step'");
   });
 
   it('records lastNoInputAt and debugNoInput in context and debug report when ASR_NOINPUT triggers', () => {

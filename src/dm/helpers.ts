@@ -1,4 +1,5 @@
 import { ROLES } from '../constants';
+import prompts from '../prompts';
 import type { RecipeIngredient, RecipeStep } from '../recipes/types';
 import { calculateRemainingSeconds } from '../timers';
 import type { ActiveTimer } from '../timers/types';
@@ -242,4 +243,75 @@ export function resolveReturnState(
   return typeof current === 'string'
     ? (current as CookingContext['returnState'])
     : 'WaitingForStepCommand';
+}
+
+/**
+ * extracts the primary active state name from actor snapshot
+ */
+export function resolveActiveStateName(self: {
+  getSnapshot?: () => { value?: unknown };
+}): string | undefined {
+  const snapshotValue = self.getSnapshot?.()?.value;
+  if (typeof snapshotValue === 'string') return snapshotValue;
+  if (typeof snapshotValue === 'object' && snapshotValue !== null) {
+    return Object.keys(snapshotValue)[0];
+  }
+  return undefined;
+}
+
+/**
+ * resolves contextual help guidance tailored to current dialogue state
+ */
+export function resolveContextualHelp(_context: CookingContext, state: string | undefined): string {
+  switch (state) {
+    case 'WaitingForPrepConfirmation':
+    case 'AnnouncePrepBatch':
+      return prompts.helpPrep;
+    case 'WaitingForStepCommand':
+    case 'AnnounceStep':
+      return prompts.helpStep;
+    case 'SelectingRecipe':
+      return prompts.selectRecipeHelp;
+    case 'ConfirmRecipe':
+      return prompts.helpConfirmRecipe;
+    case 'Completed':
+      return prompts.helpCompleted;
+    default:
+      return prompts.helpPromptRecipe;
+  }
+}
+
+/**
+ * resolves contextual greeting acknowledging current flow and prompting next step
+ */
+export function resolveContextualGreeting(
+  context: CookingContext,
+  state: string | undefined,
+): string {
+  const title = context.recipe?.title;
+  const stepNumber = (context.currentStepIndex ?? 0) + 1;
+  const totalSteps = context.recipe?.steps.length ?? 0;
+
+  switch (state) {
+    case 'WaitingForStepCommand':
+    case 'AnnounceStep':
+      return `Hey! We're on step ${stepNumber} of ${totalSteps}. Say 'next step' when you're ready, or 'repeat' to hear it again.`;
+    case 'WaitingForPrepConfirmation':
+    case 'AnnouncePrepBatch':
+      return title
+        ? `Hey! We're gathering ingredients for ${title}. Ready to keep going, or want to skip to cooking?`
+        : "Hey! We're gathering ingredients. Ready to keep going, or want to skip to cooking?";
+    case 'ConfirmRecipe':
+      return title
+        ? `Hey there! We have ${title} ready. Say 'yes' to start cooking, or search for another dish.`
+        : 'Hey there! Ready to start cooking, or search for another dish?';
+    case 'SelectingRecipe':
+      return prompts.selectRecipeHelp;
+    case 'Completed':
+      return title
+        ? `Hi there! You've finished cooking ${title}. Ready to make something else?`
+        : "Hi there! You've finished this recipe. Ready to make something else?";
+    default:
+      return prompts.promptRecipe;
+  }
 }

@@ -7,6 +7,9 @@ import {
   hasMorePrepBatches,
   lookupIngredient,
   prepareAssistantSpeech,
+  resolveActiveStateName,
+  resolveContextualGreeting,
+  resolveContextualHelp,
 } from '../helpers';
 import { createMockRecipe } from './test-helpers';
 
@@ -150,6 +153,63 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
       expect(result.lastSpokenUtterance).toBe('');
       expect(result.speechStatus).toBe('speaking');
       expect(result.messages).toBe(initialMessages);
+    });
+  });
+
+  describe('resolveActiveStateName', () => {
+    it('extracts string states', () => {
+      expect(resolveActiveStateName({ getSnapshot: () => ({ value: 'PromptRecipe' }) })).toBe(
+        'PromptRecipe',
+      );
+    });
+
+    it('extracts parent key from nested state objects', () => {
+      expect(
+        resolveActiveStateName({
+          getSnapshot: () => ({ value: { WaitingForStepCommand: 'inner' } }),
+        }),
+      ).toBe('WaitingForStepCommand');
+    });
+
+    it('returns undefined if snapshot is missing', () => {
+      expect(resolveActiveStateName({})).toBeUndefined();
+    });
+  });
+
+  describe('resolveContextualHelp & resolveContextualGreeting', () => {
+    const dummyContext = {
+      recipe: mockRecipe,
+      currentStepIndex: 1,
+      messages: [],
+    } as unknown as Parameters<typeof resolveContextualHelp>[0];
+
+    it('returns state-specific help guidance', () => {
+      expect(resolveContextualHelp(dummyContext, 'PromptRecipe')).toContain(
+        "Tell me what you'd like to cook",
+      );
+      expect(resolveContextualHelp(dummyContext, 'ConfirmRecipe')).toContain(
+        'Say yes to start cooking',
+      );
+      expect(resolveContextualHelp(dummyContext, 'WaitingForPrepConfirmation')).toContain(
+        'gathered these ingredients',
+      );
+      expect(resolveContextualHelp(dummyContext, 'WaitingForStepCommand')).toContain('next step');
+      expect(resolveContextualHelp(dummyContext, 'Completed')).toContain('finished this recipe');
+    });
+
+    it('returns state-specific greeting prompts', () => {
+      expect(resolveContextualGreeting(dummyContext, 'PromptRecipe')).toBe(
+        'Hi! What would you like to cook today?',
+      );
+      expect(resolveContextualGreeting(dummyContext, 'ConfirmRecipe')).toContain(
+        'We have Spicy Arrabiata Penne ready',
+      );
+      expect(resolveContextualGreeting(dummyContext, 'WaitingForPrepConfirmation')).toContain(
+        'gathering ingredients for Spicy Arrabiata Penne',
+      );
+      expect(resolveContextualGreeting(dummyContext, 'WaitingForStepCommand')).toContain(
+        "We're on step 2 of 4",
+      );
     });
   });
 });
