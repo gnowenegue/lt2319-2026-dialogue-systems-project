@@ -1,14 +1,7 @@
 import type { Settings } from 'speechstate';
-import { AzurePushStreamAdapter } from './audio';
+import { AzurePushStreamAdapter } from './audio/azure-push-stream';
 import { REGION } from './constants';
-
-/**
- * retrieves an environment variable from `import.meta.env` (Vite) or `process.env` (Node)
- */
-const getEnv = (key: string, fallback = ''): string => {
-  const metaEnv = import.meta.env as Record<string, string | undefined> | undefined;
-  return metaEnv?.[key] || globalThis.process?.env?.[key] || fallback;
-};
+import { getEnv } from './env';
 
 const speechRegion = getEnv('VITE_AZURE_SPEECH_REGION', REGION);
 const speechKey = getEnv('VITE_AZURE_SPEECH_KEY');
@@ -58,4 +51,4 @@ const settings: Settings = {
   },
 };
 
-export { azureCredentials, createSettings, getEnv, getPushStreamAdapter, settings };
+export { getPushStreamAdapter, settings };

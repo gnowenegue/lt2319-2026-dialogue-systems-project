@@ -5,6 +5,21 @@ import type { LlmUsageRecord, LlmUsageSummary } from './types';
 let usageHistory: readonly LlmUsageRecord[] = [];
 
 /**
+ * aggregates token consumption metrics across a list of usage records using pure functional reduction
+ */
+export function calculateUsageSummary(history: readonly LlmUsageRecord[]): LlmUsageSummary {
+  return history.reduce<LlmUsageSummary>(
+    (acc, item) => ({
+      totalCalls: acc.totalCalls + 1,
+      totalPromptTokens: acc.totalPromptTokens + item.promptTokens,
+      totalCompletionTokens: acc.totalCompletionTokens + item.completionTokens,
+      totalTokens: acc.totalTokens + item.totalTokens,
+    }),
+    { totalCalls: 0, totalPromptTokens: 0, totalCompletionTokens: 0, totalTokens: 0 },
+  );
+}
+
+/**
  * records token usage for an LLM completion, outputs debug logs to console, and retains session history
  */
 export function recordLlmUsage(
@@ -45,15 +60,7 @@ export function getLlmUsageHistory(): readonly LlmUsageRecord[] {
  * aggregates token metrics across all recorded LLM calls in the current session
  */
 export function getLlmUsageSummary(): LlmUsageSummary {
-  return usageHistory.reduce<LlmUsageSummary>(
-    (acc, item) => ({
-      totalCalls: acc.totalCalls + 1,
-      totalPromptTokens: acc.totalPromptTokens + item.promptTokens,
-      totalCompletionTokens: acc.totalCompletionTokens + item.completionTokens,
-      totalTokens: acc.totalTokens + item.totalTokens,
-    }),
-    { totalCalls: 0, totalPromptTokens: 0, totalCompletionTokens: 0, totalTokens: 0 },
-  );
+  return calculateUsageSummary(usageHistory);
 }
 
 /**
