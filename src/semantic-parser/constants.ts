@@ -31,9 +31,21 @@ export const DIALOGUE_ACTS = [
 ] as const;
 
 /**
- * expected primary dialogue acts per dialogue state phase to guide NLU disambiguation
+ * dialogue acts that require the original utterance as a query fallback if query slot is omitted.
  */
-export const STATE_EXPECTED_ACTS: Record<string, readonly (typeof DIALOGUE_ACTS)[number][]> = {
+export const ACTS_REQUIRING_QUERY: readonly (typeof DIALOGUE_ACTS)[number][] = [
+  'INQUIRE_SUBSTITUTION',
+  'INQUIRE_TECHNIQUE',
+  'SEARCH_RECIPE',
+  'QUERY_STEP_DETAIL',
+] as const;
+
+/**
+ * expected primary dialogue acts per dialogue state phase to guide NLU disambiguation.
+ */
+export const STATE_EXPECTED_ACTS: Readonly<
+  Record<string, readonly (typeof DIALOGUE_ACTS)[number][]>
+> = {
   PromptRecipe: ['SEARCH_RECIPE', 'GREETING', 'HELP'],
   SelectingRecipe: ['SELECT_RECIPE', 'SEARCH_RECIPE', 'DENY', 'HELP'],
   ConfirmRecipe: ['AFFIRM', 'DENY', 'INQUIRE_SUBSTITUTION', 'QUERY_INGREDIENT'],

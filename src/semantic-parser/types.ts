@@ -2,13 +2,21 @@ import type OpenAI from 'openai';
 import type { DIALOGUE_ACTS } from './constants';
 
 /**
- * options for semantic parsing specifying an optional LLM client and model identifier
+ * conversational message format for prior dialogue history context.
+ */
+export interface ParserChatMessage {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+}
+
+/**
+ * options for semantic parsing specifying an optional LLM client, model, and dialogue context.
  */
 export interface ParserOptions {
-  client?: OpenAI;
-  model?: string;
-  recentMessages?: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
-  currentState?: string;
+  readonly client?: OpenAI;
+  readonly model?: string;
+  readonly recentMessages?: readonly ParserChatMessage[];
+  readonly currentState?: string;
 }
 
 /**
@@ -22,18 +30,18 @@ export type DialogueAct = (typeof DIALOGUE_ACTS)[number];
  * all slots are optional to keep LLM responses compact and eliminate empty null fields.
  */
 export interface Entities {
-  ingredient?: string;
-  stepNumber?: number;
-  query?: string;
-  durationSeconds?: number;
-  timerLabel?: string;
+  readonly ingredient?: string;
+  readonly stepNumber?: number;
+  readonly query?: string;
+  readonly durationSeconds?: number;
+  readonly timerLabel?: string;
 }
 
 /**
- * structured result returned by the semantic parser after parsing recognized speech
+ * structured result returned by the semantic parser after parsing recognized speech.
  */
 export interface SemanticParseResult {
-  act: DialogueAct;
-  entities?: Entities;
-  utterance: string;
+  readonly act: DialogueAct;
+  readonly entities?: Entities;
+  readonly utterance: string;
 }
