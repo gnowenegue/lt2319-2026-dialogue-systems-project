@@ -2,13 +2,12 @@ import { MAX_SPOKEN_WORDS } from './constants';
 import { DIALOGUE_ACTS } from './semantic-parser/constants';
 
 // shared rules for concise, voice-safe responses for Azure Neural TTS delivery
-const SPOKEN_RESPONSE_RULES = `Answer in 1-2 plain sentences strictly under ${MAX_SPOKEN_WORDS} words. No markdown, lists, or filler. Never guess cooking times, temperatures, measurements, or food safety advice—if uncertain, say so simply.`;
+export const SPOKEN_RESPONSE_RULES = `Answer in 1-2 plain sentences strictly under ${MAX_SPOKEN_WORDS} words. No markdown, lists, or filler. Never guess cooking times, temperatures, measurements, or food safety advice—if uncertain, say so simply.`;
 
 /**
- * centralized prompt registry for CookMate.
- * contains system instructions for semantic parsing, RAG response synthesis, and conversation handling.
+ * system prompts provided to LLMs for semantic parsing, recipe normalization, and synthesis.
  */
-export default {
+export const SYSTEM_PROMPTS = {
   /**
    * system prompt for Groq/LLM semantic extraction.
    * dynamically lists all valid dialogue acts derived from `DIALOGUE_ACTS`.
@@ -92,7 +91,12 @@ Rules:
 - Split compound sentences into atomic single-action steps under 25 words each.
 - Renumber steps sequentially starting from 1.
 - Omit 'estimatedMinutes' if no specific duration is mentioned in the step. Never guess cooking times.`,
+} as const;
 
+/**
+ * predefined assistant dialogue lines spoken directly to the user.
+ */
+export const SPOKEN_RESPONSES = {
   /**
    * initial spoken utterance prompting the user to specify a recipe to cook
    */
@@ -109,5 +113,19 @@ Rules:
     "Are you still there? Let me know when you're ready for the next step.",
     "I'll pause for now. Tap the microphone when you're ready to continue.",
   ],
-  llmError: "Sorry, I'm having trouble thinking right now. Please try again in a moment.",
 } as const;
+
+export type SystemPrompts = typeof SYSTEM_PROMPTS;
+export type SpokenResponses = typeof SPOKEN_RESPONSES;
+
+/**
+ * centralized prompt registry for CookMate.
+ * contains system instructions for semantic parsing, RAG response synthesis, and conversation handling.
+ */
+const prompts = {
+  ...SYSTEM_PROMPTS,
+  ...SPOKEN_RESPONSES,
+} as const;
+
+export type PromptRegistry = typeof prompts;
+export default prompts;
