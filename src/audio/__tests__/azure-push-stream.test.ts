@@ -77,9 +77,9 @@ describe('AzurePushStreamAdapter', () => {
     expect(mockPushStream.close).toHaveBeenCalledTimes(1);
   });
 
-  it('renews push stream upon stopStreaming for subsequent speech turns', () => {
+  it('keeps push stream continuous across stopStreaming for subsequent speech turns', () => {
     const adapter = new AzurePushStreamAdapter();
-    const initialStream = (
+    const stream = (
       adapter as unknown as {
         pushStreamResult: {
           pushStream: { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
@@ -90,20 +90,13 @@ describe('AzurePushStreamAdapter', () => {
     adapter.startStreaming();
     adapter.stopStreaming();
 
-    expect(initialStream.close).toHaveBeenCalledTimes(1);
+    // stream should remain open for subsequent turns, not closed
+    expect(stream.close).not.toHaveBeenCalled();
 
-    const renewedStream = (
-      adapter as unknown as {
-        pushStreamResult: { pushStream: { write: ReturnType<typeof vi.fn> } };
-      }
-    ).pushStreamResult.pushStream;
-
-    expect(renewedStream).not.toBe(initialStream);
-
-    // new stream can receive chunks when streaming resumes
+    // stream continues to receive chunks when streaming resumes
     const chunk = new Int16Array([1, 2, 3]);
     adapter.startStreaming();
     adapter.pushChunk(chunk);
-    expect(renewedStream.write).toHaveBeenCalledTimes(1);
+    expect(stream.write).toHaveBeenCalledTimes(1);
   });
 });

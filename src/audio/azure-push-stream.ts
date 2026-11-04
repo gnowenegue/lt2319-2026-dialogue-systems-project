@@ -11,12 +11,10 @@ export type AzurePushStreamState = 'idle' | 'streaming' | 'closed';
  * and continues streaming live 16 kHz PCM chunks until speech finishes.
  */
 export class AzurePushStreamAdapter {
-  private pushStreamResult: PushStreamAudioConfigResult;
+  private readonly pushStreamResult: PushStreamAudioConfigResult;
   private state: AzurePushStreamState = 'idle';
-  private readonly sampleRate: number;
 
   constructor(sampleRate = 16000) {
-    this.sampleRate = sampleRate;
     this.pushStreamResult = createPushStreamAudioConfig(sampleRate);
   }
 
@@ -60,38 +58,12 @@ export class AzurePushStreamAdapter {
   }
 
   /**
-   * pauses streaming audio into Azure ASR and prepares a fresh push stream for subsequent turns
+   * pauses streaming audio into Azure ASR while keeping the underlying stream open
    */
   stopStreaming(): void {
     if (this.state === 'streaming') {
       this.state = 'idle';
-      this.renewStream();
     }
-  }
-
-  /**
-   * re-creates a fresh push stream and attaches it to the existing `audioConfig`
-   */
-  renewStream(): void {
-    if (this.state === 'closed') {
-      return;
-    }
-
-    try {
-      this.pushStreamResult.pushStream.close();
-    } catch {
-      // ignore close errors on already-closed stream
-    }
-
-    const nextConfig = createPushStreamAudioConfig(this.sampleRate);
-    this.pushStreamResult = {
-      pushStream: nextConfig.pushStream,
-      audioConfig: this.pushStreamResult.audioConfig,
-    };
-
-    // link fresh stream instance to the existing audioConfig delegates
-    (this.pushStreamResult.audioConfig as unknown as { privSource?: unknown }).privSource =
-      nextConfig.pushStream;
   }
 
   /**
@@ -102,12 +74,16 @@ export class AzurePushStreamAdapter {
   }
 
   /**
-   * permanently closes the push audio stream
+   * permanently closes the push audio stream upon application shutdown
    */
   close(): void {
     if (this.state !== 'closed') {
       this.state = 'closed';
-      this.pushStreamResult.pushStream.close();
+      try {
+        this.pushStreamResult.pushStream.close();
+      } catch {
+        // ignore errors on already-closed stream
+      }
     }
   }
 }
