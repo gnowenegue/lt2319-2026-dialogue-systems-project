@@ -93,6 +93,15 @@ describe('Recipe Normalizer', () => {
       expect(steps[1].estimatedMinutes).toBeUndefined();
     });
 
+    it('extracts cooking durations specified in hours or compound hours and minutes', () => {
+      const text = 'Bake the roast for 1 hour and 30 minutes. Let rest for 15 minutes.';
+      const steps = extractSteps(text);
+
+      expect(steps).toHaveLength(2);
+      expect(steps[0].estimatedMinutes).toBe(90);
+      expect(steps[1].estimatedMinutes).toBe(15);
+    });
+
     it('handles empty or whitespace instructions gracefully', () => {
       expect(extractSteps('')).toEqual([]);
       expect(extractSteps('   ')).toEqual([]);
