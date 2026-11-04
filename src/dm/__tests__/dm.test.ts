@@ -332,13 +332,12 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(activeReport.returnState).toBeNull();
     expect(activeReport.latestAsr?.utterance).toBe('yes ready');
     expect(activeReport.latestAsr?.confidence).toBe(0.92);
-    expect('bargeIn' in (activeReport.latestAsr ?? {})).toBe(false);
     expect(activeReport.lastResolvedAct).toBe('AFFIRM');
     expect(activeReport.lastResolvedEntities).toEqual({ query: 'yes' });
     expect(activeReport.messages.length).toBeGreaterThan(1);
   });
 
-  it('switches recipes globally via SEARCH_RECIPE while in ConfirmRecipe (barge-in scenario)', async () => {
+  it('switches recipes globally via SEARCH_RECIPE while in ConfirmRecipe', async () => {
     const actor = createTestCookingActor();
     actor.send({ type: 'START' });
     actor.send({ type: 'ASRTTS_READY' });

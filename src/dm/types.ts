@@ -21,7 +21,6 @@ export interface Message {
   content: string;
   act?: DialogueAct;
   timestamp?: string;
-  bargeIn?: boolean;
 }
 
 /**
@@ -112,10 +111,6 @@ export interface CookingContext {
    */
   lastResult: Hypothesis[] | null;
   /**
-   * flag indicating if the most recent user utterance was a barge-in
-   */
-  lastBargeIn?: boolean;
-  /**
    * conversation history for multi-turn conversational repairs and context
    */
   messages: Message[];
@@ -135,6 +130,10 @@ export interface CookingContext {
    * descriptive error message when recipe fetch or action fails
    */
   errorMessage: string | null;
+  /**
+   * optional prompt override for recipe discovery (e.g. after search failure)
+   */
+  recipePrompt?: string | null;
   /**
    * current mic and speech synthesis activity state
    */
@@ -211,7 +210,7 @@ export type CookingEvent =
   | { type: 'ASRTTS_READY' }
   | { type: 'ASR_NOINPUT' }
   | { type: 'LISTEN_COMPLETE' }
-  | { type: 'RECOGNISED'; value: Hypothesis[]; bargeIn?: boolean }
+  | { type: 'RECOGNISED'; value: Hypothesis[] }
   | { type: 'UNKNOWN' }
   | { type: 'HELP' }
   | { type: 'GREETING' }

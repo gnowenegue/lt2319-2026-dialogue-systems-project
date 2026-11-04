@@ -189,52 +189,6 @@ describe('Dialogue Manager - Voice Lifecycle & Speech Turn-Taking', () => {
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe('Hi! Ready when you are.');
   });
 
-  it('records barge-in status on internal context while omitting barge-in from debug report', () => {
-    const actor = createTestCookingActor();
-    actor.send({ type: 'START' });
-    actor.send({ type: 'ASRTTS_READY' });
-
-    actor.send({
-      type: 'RECOGNISED',
-      value: [{ utterance: 'stop talking', confidence: 0.98 }],
-      bargeIn: true,
-    });
-
-    const snapshot = actor.getSnapshot();
-    const userMsg = snapshot.context.messages.find((m) => m.role === 'user');
-    expect(userMsg?.bargeIn).toBe(true);
-    expect(snapshot.context.lastBargeIn).toBe(true);
-
-    const report = buildDebugReport(snapshot);
-    expect('bargeIn' in (report.latestAsr ?? {})).toBe(false);
-    expect(report.messages.some((m) => 'bargeIn' in m)).toBe(false);
-  });
-
-  it('does not mark barge-in on internal context when user waits for SPEAK_COMPLETE before speaking', () => {
-    const actor = createTestCookingActor();
-    actor.send({ type: 'START' });
-    actor.send({ type: 'ASRTTS_READY' });
-
-    // assistant finishes speaking prompt -> speechStatus becomes 'listening'
-    actor.send({ type: 'SPEAK_COMPLETE' });
-
-    // user speaks after assistant finishes
-    actor.send({
-      type: 'RECOGNISED',
-      value: [{ utterance: 'make pasta', confidence: 0.95 }],
-      bargeIn: true, // even if speechstate mistakenly sends bargeIn: true
-    });
-
-    const snapshot = actor.getSnapshot();
-    const userMsg = snapshot.context.messages.find((m) => m.role === 'user');
-    expect(userMsg?.bargeIn).toBe(false);
-    expect(snapshot.context.lastBargeIn).toBe(false);
-
-    const report = buildDebugReport(snapshot);
-    expect('bargeIn' in (report.latestAsr ?? {})).toBe(false);
-    expect(report.messages.some((m) => 'bargeIn' in m)).toBe(false);
-  });
-
   it('records lastNoInputAt and debugNoInput in context and debug report when ASR_NOINPUT triggers', () => {
     const actor = createTestCookingActor();
     actor.send({ type: 'START' });
@@ -257,7 +211,7 @@ describe('Dialogue Manager - Voice Lifecycle & Speech Turn-Taking', () => {
     expect(actor.getSnapshot().value).toBe('Idle');
 
     // WAKE_WORD in Idle advances to Prepare
-    actor.send({ type: 'WAKE_WORD', modelName: 'hey_jarvis_v0.1', score: 0.85 });
+    actor.send({ type: 'WAKE_WORD', modelName: 'hey_chef', score: 0.85 });
     expect(actor.getSnapshot().value).toBe('Prepare');
 
     actor.send({ type: 'ASRTTS_READY' });

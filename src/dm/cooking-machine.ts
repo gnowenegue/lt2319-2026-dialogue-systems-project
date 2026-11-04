@@ -23,24 +23,11 @@ import {
   lookupIngredient,
   matchCandidate,
   prepareAssistantSpeech,
+  resolveReturnState,
 } from './helpers';
 import type { CookingContext, CookingEvent, RecipeCandidate } from './types';
 
 export { fetchRecipeLogic, queryKnowledgeLogic, queryStepDetailLogic, refineRecipeLogic };
-
-/**
- * extracts the active return state snapshot for knowledge and step detail queries
- */
-function resolveReturnState(
-  context: CookingContext,
-  self: { getSnapshot?: () => { value?: unknown } },
-): CookingContext['returnState'] {
-  if (context.returnState) return context.returnState;
-  const current = self.getSnapshot?.()?.value;
-  return typeof current === 'string'
-    ? (current as CookingContext['returnState'])
-    : 'WaitingForStepCommand';
-}
 
 /**
  * procedural cooking state machine coordinating recipe discovery, paced ingredient prep,
@@ -64,17 +51,6 @@ export const cookingMachine = setup({
         });
       }
     },
-    speakLastUtteranceNoBargeIn: ({ context }: { context: CookingContext }) => {
-      if (context.spstRef) {
-        context.spstRef.send({
-          type: 'SPEAK',
-          value: {
-            utterance: context.lastSpokenUtterance ?? '',
-            bargeIn: false,
-          },
-        });
-      }
-    },
     setListening: assign({ speechStatus: 'listening' as const }),
     resetCookingSession: assign({
       recipe: null,
@@ -83,6 +59,7 @@ export const cookingMachine = setup({
       prepBatchIndex: 0,
       selectedCandidateId: null,
       knowledgeQuery: null,
+      recipePrompt: null,
     }),
   },
   actors: {
@@ -95,7 +72,7 @@ export const cookingMachine = setup({
   },
   guards: cookingGuards,
 }).createMachine({
-  id: 'CookingCopilot',
+  id: 'CookMate',
   initial: 'Idle',
   context: ({ spawn }) => ({
     recipe: null,
@@ -103,7 +80,6 @@ export const cookingMachine = setup({
     currentStepIndex: 0,
     lastSpokenUtterance: null,
     lastResult: null,
-    lastBargeIn: false,
     messages: [
       {
         role: ROLES.System,
@@ -114,6 +90,7 @@ export const cookingMachine = setup({
     debugNoInput: 0,
     lastNoInputAt: null,
     errorMessage: null,
+    recipePrompt: null,
     spstRef: spawn('speechstateActor', { input: settings }),
     timerRef: spawn('timerActor'),
     activeTimers: [],
@@ -136,10 +113,8 @@ export const cookingMachine = setup({
             hour: '2-digit',
             minute: '2-digit',
           });
-          const isBargeIn = context.speechStatus === 'speaking';
           return {
             lastResult: event.value,
-            lastBargeIn: isBargeIn,
             noInputCount: 0,
             debugNoInput: 0,
             pendingUtterance: null,
@@ -152,7 +127,6 @@ export const cookingMachine = setup({
                     role: ROLES.User,
                     content: userUtterance,
                     timestamp,
-                    bargeIn: isBargeIn,
                   },
                 ]
               : context.messages,
@@ -213,7 +187,7 @@ export const cookingMachine = setup({
               speechStatus: isPaused ? ('paused' as const) : ('speaking' as const),
             };
           }),
-          'speakLastUtteranceNoBargeIn',
+          'speakLastUtterance',
         ],
       },
       {
@@ -420,16 +394,11 @@ export const cookingMachine = setup({
 
     PromptRecipe: {
       entry: [
-        assign(({ context }) => {
-          // retain speech when transitioning from an error (e.g. failed recipe fetch)
-          if (context.errorMessage) {
-            return { errorMessage: null };
-          }
-          return {
-            ...prepareAssistantSpeech(context, prompts.promptRecipe),
-            errorMessage: null,
-          };
-        }),
+        assign(({ context }) => ({
+          ...prepareAssistantSpeech(context, context.recipePrompt ?? prompts.promptRecipe),
+          recipePrompt: null,
+          errorMessage: null,
+        })),
         'speakLastUtterance',
       ],
       on: {
@@ -486,27 +455,22 @@ export const cookingMachine = setup({
           },
           {
             target: 'SelectingRecipe',
-            actions: assign(({ context, event }) => {
-              const candidates = (
-                event.output as {
-                  kind: 'multiple';
-                  candidates: readonly RecipeCandidate[];
-                }
-              ).candidates;
-              return {
-                recipeCandidates: candidates,
-                ...prepareAssistantSpeech(context, formatCandidateUtterance(candidates)),
-              };
+            actions: assign({
+              recipeCandidates: ({ event }) =>
+                (
+                  event.output as {
+                    kind: 'multiple';
+                    candidates: readonly RecipeCandidate[];
+                  }
+                ).candidates,
             }),
           },
         ],
         onError: {
           target: 'PromptRecipe',
-          actions: assign(({ context, event }) => ({
-            ...prepareAssistantSpeech(
-              context,
+          actions: assign(({ event }) => ({
+            recipePrompt:
               'Sorry, I could not find a recipe for that. What else would you like to cook?',
-            ),
             errorMessage: event.error instanceof Error ? event.error.message : String(event.error),
           })),
         },
@@ -514,7 +478,12 @@ export const cookingMachine = setup({
     },
 
     SelectingRecipe: {
-      entry: 'speakLastUtterance',
+      entry: [
+        assign(({ context }) =>
+          prepareAssistantSpeech(context, formatCandidateUtterance(context.recipeCandidates ?? [])),
+        ),
+        'speakLastUtterance',
+      ],
       on: {
         SPEAK_COMPLETE: {
           guard: 'isUnderNoInputLimit',
@@ -598,11 +567,8 @@ export const cookingMachine = setup({
         },
         onError: {
           target: 'PromptRecipe',
-          actions: assign(({ context, event }) => ({
-            ...prepareAssistantSpeech(
-              context,
-              'Sorry, I could not load that recipe. What else would you like to cook?',
-            ),
+          actions: assign(({ event }) => ({
+            recipePrompt: 'Sorry, I could not load that recipe. What else would you like to cook?',
             selectedCandidateId: null,
             errorMessage: event.error instanceof Error ? event.error.message : String(event.error),
           })),
@@ -978,7 +944,7 @@ export const cookingMachine = setup({
           ...prepareAssistantSpeech(context, 'All steps completed. Enjoy your meal!'),
           speechStatus: 'idle',
         })),
-        'speakLastUtteranceNoBargeIn',
+        'speakLastUtterance',
       ],
       on: {
         START: {

@@ -173,7 +173,7 @@ export function formatCandidateUtterance(candidates: readonly RecipeCandidate[])
 }
 
 /**
- * matches a user choice by 1-based index, ordinal phrase, or partial title match
+ * matches a user choice by 1-based index or candidate title match
  */
 export function matchCandidate(
   candidates: readonly RecipeCandidate[],
@@ -191,21 +191,7 @@ export function matchCandidate(
 
   const normalized = query.toLowerCase().trim();
 
-  // ordinal and relative keyword matching
-  if (/\b(first|1st|number 1|one)\b/i.test(normalized)) {
-    return candidates[0] ?? null;
-  }
-  if (/\b(second|2nd|number 2|two)\b/i.test(normalized) && candidates.length >= 2) {
-    return candidates[1] ?? null;
-  }
-  if (/\b(third|3rd|number 3|three)\b/i.test(normalized) && candidates.length >= 3) {
-    return candidates[2] ?? null;
-  }
-  if (/\b(last|final)\b/i.test(normalized) && candidates.length > 0) {
-    return candidates[candidates.length - 1] ?? null;
-  }
-
-  // title matching: substring or significant token overlap
+  // title matching: direct substring or token match
   const queryTokens = normalized.split(/\s+/).filter((t) => t.length > 2);
   const matchByTitle = candidates.find((c) => {
     const titleLower = c.title.toLowerCase();
@@ -214,9 +200,7 @@ export function matchCandidate(
     }
 
     const titleTokens = titleLower.split(/\s+/).filter((t) => t.length > 2);
-    return queryTokens.some((qTok) =>
-      titleTokens.some((tTok) => tTok.includes(qTok) || qTok.includes(tTok)),
-    );
+    return queryTokens.some((qTok) => titleTokens.includes(qTok));
   });
 
   return matchByTitle ?? null;
@@ -244,4 +228,18 @@ export function prepareAssistantSpeech(
         ]
       : context.messages,
   };
+}
+
+/**
+ * extracts the active return state snapshot for knowledge and step detail queries
+ */
+export function resolveReturnState(
+  context: CookingContext,
+  self: { getSnapshot?: () => { value?: unknown } },
+): CookingContext['returnState'] {
+  if (context.returnState) return context.returnState;
+  const current = self.getSnapshot?.()?.value;
+  return typeof current === 'string'
+    ? (current as CookingContext['returnState'])
+    : 'WaitingForStepCommand';
 }

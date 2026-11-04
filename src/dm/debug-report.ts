@@ -57,7 +57,6 @@ export function buildDebugReport({ value, context }: DebugReportOptions) {
       summary: getLlmUsageSummary(),
       history: getLlmUsageHistory(),
     },
-    // strip internal barge-in tracking metadata from exported debug messages
-    messages: (context.messages ?? []).map(({ bargeIn: _, ...msg }) => msg),
+    messages: context.messages ?? [],
   };
 }
