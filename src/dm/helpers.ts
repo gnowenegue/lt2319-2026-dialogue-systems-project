@@ -1,8 +1,9 @@
+import { ROLES } from '../constants';
 import type { RecipeIngredient, RecipeStep } from '../recipes/types';
 import { calculateRemainingSeconds } from '../timers';
 import type { ActiveTimer } from '../timers/types';
 import { INGREDIENTS_PER_PREP_BATCH } from './constants';
-import type { RecipeCandidate } from './types';
+import type { CookingContext, Message, RecipeCandidate, SpeechStatus } from './types';
 
 /**
  * formats a 2-item ingredient batch for spoken delivery during mise en place prep
@@ -219,4 +220,28 @@ export function matchCandidate(
   });
 
   return matchByTitle ?? null;
+}
+
+/**
+ * creates updated assistant speech context fields and appends the spoken turn to conversation history
+ */
+export function prepareAssistantSpeech(
+  context: CookingContext,
+  text: string,
+): { lastSpokenUtterance: string; speechStatus: SpeechStatus; messages: Message[] } {
+  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return {
+    lastSpokenUtterance: text,
+    speechStatus: 'speaking',
+    messages: text
+      ? [
+          ...context.messages,
+          {
+            role: ROLES.Assistant,
+            content: text,
+            timestamp,
+          },
+        ]
+      : context.messages,
+  };
 }

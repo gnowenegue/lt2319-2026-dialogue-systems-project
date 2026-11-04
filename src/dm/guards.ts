@@ -1,3 +1,4 @@
+import prompts from '../prompts';
 import { hasMorePrepBatches as checkHasMorePrepBatches } from './helpers';
 import type { CookingContext, CookingEvent } from './types';
 
@@ -15,4 +16,10 @@ export const cookingGuards = {
     const stepNum = event.stepNumber;
     return stepNum >= 1 && stepNum <= (context.recipe?.steps.length ?? 0);
   },
+  isUnderNoInputLimit: ({ context }: { context: CookingContext }) =>
+    context.noInputCount < prompts.noInput.length,
+  isNoInputLimitReached: ({ context }: { context: CookingContext }) =>
+    context.noInputCount >= prompts.noInput.length,
+  hasPendingUtterance: ({ context }: { context: CookingContext }) =>
+    Boolean(context.pendingUtterance),
 };
