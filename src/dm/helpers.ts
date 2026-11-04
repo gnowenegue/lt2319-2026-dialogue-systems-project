@@ -2,6 +2,7 @@ import type { RecipeIngredient, RecipeStep } from '../recipes/types';
 import { calculateRemainingSeconds } from '../timers';
 import type { ActiveTimer } from '../timers/types';
 import { INGREDIENTS_PER_PREP_BATCH } from './constants';
+import type { RecipeCandidate } from './types';
 
 /**
  * formats a 2-item ingredient batch for spoken delivery during mise en place prep
@@ -156,4 +157,66 @@ export function formatCheckTimerUtterance(
   });
 
   return `You have ${activeTimers.length} active timers: ${descriptions.join(', and ')}.`;
+}
+
+/**
+ * formats discovered recipe candidates for concise spoken delivery (<30 words)
+ */
+export function formatCandidateUtterance(candidates: readonly RecipeCandidate[]): string {
+  if (candidates.length === 0) {
+    return 'No recipes found.';
+  }
+
+  const items = candidates.map((c) => `${c.index}) ${c.title}`).join(', ');
+  return `I found ${candidates.length} options: ${items}. Which one would you like?`;
+}
+
+/**
+ * matches a user choice by 1-based index, ordinal phrase, or partial title match
+ */
+export function matchCandidate(
+  candidates: readonly RecipeCandidate[],
+  index?: number,
+  query?: string,
+): RecipeCandidate | null {
+  // numeric index match (1-indexed)
+  if (typeof index === 'number' && index >= 1 && index <= candidates.length) {
+    return candidates[index - 1] ?? null;
+  }
+
+  if (!query?.trim()) {
+    return null;
+  }
+
+  const normalized = query.toLowerCase().trim();
+
+  // ordinal and relative keyword matching
+  if (/\b(first|1st|number 1|one)\b/i.test(normalized)) {
+    return candidates[0] ?? null;
+  }
+  if (/\b(second|2nd|number 2|two)\b/i.test(normalized) && candidates.length >= 2) {
+    return candidates[1] ?? null;
+  }
+  if (/\b(third|3rd|number 3|three)\b/i.test(normalized) && candidates.length >= 3) {
+    return candidates[2] ?? null;
+  }
+  if (/\b(last|final)\b/i.test(normalized) && candidates.length > 0) {
+    return candidates[candidates.length - 1] ?? null;
+  }
+
+  // title matching: substring or significant token overlap
+  const queryTokens = normalized.split(/\s+/).filter((t) => t.length > 2);
+  const matchByTitle = candidates.find((c) => {
+    const titleLower = c.title.toLowerCase();
+    if (titleLower.includes(normalized) || normalized.includes(titleLower)) {
+      return true;
+    }
+
+    const titleTokens = titleLower.split(/\s+/).filter((t) => t.length > 2);
+    return queryTokens.some((qTok) =>
+      titleTokens.some((tTok) => tTok.includes(qTok) || qTok.includes(tTok)),
+    );
+  });
+
+  return matchByTitle ?? null;
 }

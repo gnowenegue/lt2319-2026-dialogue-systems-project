@@ -1,7 +1,9 @@
+import type OpenAI from 'openai';
 import type { Hypothesis, SpeechStateExternalEvent } from 'speechstate';
 import type { AnyActorRef } from 'xstate';
 
 import type { ROLES } from '../constants';
+import type { RagCategory } from '../rag/types';
 import type { NormalizedRecipe } from '../recipes/types';
 import type { DialogueAct } from '../semantic-parser/types';
 import type { ActiveTimer } from '../timers/types';
@@ -19,7 +21,50 @@ export interface Message {
   content: string;
   act?: DialogueAct;
   timestamp?: string;
+  bargeIn?: boolean;
 }
+
+/**
+ * input parameters for culinary knowledge retrieval and advice synthesis
+ */
+export interface QueryKnowledgeInput {
+  query: string;
+  category?: RagCategory;
+  recentMessages?: readonly { role: 'user' | 'assistant'; content: string }[];
+  /**
+   * active recipe and step context to ground situational cooking advice
+   */
+  stepContext?: string;
+}
+
+/**
+ * input parameters for answering factual questions about the active cooking step
+ */
+export interface QueryStepDetailInput {
+  query: string;
+  instruction?: string;
+  stepNumber?: number;
+  recipeTitle?: string;
+  client?: OpenAI;
+  model?: string;
+}
+
+/**
+ * candidate recipe option presented during multi-match recipe discovery
+ */
+export interface RecipeCandidate {
+  id: string;
+  title: string;
+  index: number;
+}
+
+/**
+ * search result returned by recipe discovery actor
+ */
+export type SearchRecipeOutput =
+  | NormalizedRecipe
+  | { kind: 'single'; recipe: NormalizedRecipe }
+  | { kind: 'multiple'; candidates: readonly RecipeCandidate[] };
 
 /**
  * current speech processing and microphone activity status
@@ -47,6 +92,10 @@ export interface CookingContext {
    */
   recipe: NormalizedRecipe | null;
   /**
+   * candidate recipe options discovered during search pending user selection
+   */
+  recipeCandidates?: readonly RecipeCandidate[] | null;
+  /**
    * 0-indexed batch pointer into `recipe.ingredients` during mise en place prep
    */
   prepBatchIndex: number;
@@ -63,13 +112,25 @@ export interface CookingContext {
    */
   lastResult: Hypothesis[] | null;
   /**
+   * flag indicating if the most recent user utterance was a barge-in
+   */
+  lastBargeIn?: boolean;
+  /**
    * conversation history for multi-turn conversational repairs and context
    */
   messages: Message[];
   /**
-   * count of consecutive turns with no user input
+   * count of consecutive audible reprompts triggered by silence timeouts
    */
   noInputCount: number;
+  /**
+   * count of consecutive no-input timeout events, including silent timeouts during prep and cooking
+   */
+  debugNoInput?: number;
+  /**
+   * ISO 8601 timestamp of when speechstate most recently triggered ASR_NOINPUT
+   */
+  lastNoInputAt?: string | null;
   /**
    * descriptive error message when recipe fetch or action fails
    */
@@ -90,6 +151,34 @@ export interface CookingContext {
    * entities extracted by semantic parser for the latest dialogue act
    */
   lastResolvedEntities?: Record<string, unknown> | null;
+  /**
+   * flag indicating a silent no-input timeout occurred during hands-busy cooking or prep
+   */
+  silentNoInput?: boolean;
+  /**
+   * recipe ID of the user-selected candidate to be refined and loaded
+   */
+  selectedCandidateId?: string | null;
+  /**
+   * pending culinary query for RAG retrieval and advice synthesis
+   */
+  knowledgeQuery?: string | null;
+  /**
+   * category constraint for culinary RAG lookup
+   */
+  knowledgeCategory?: RagCategory | null;
+  /**
+   * dialogue state to return to once knowledge response finishes speaking
+   */
+  returnState?:
+    | 'WaitingForStepCommand'
+    | 'WaitingForPrepConfirmation'
+    | 'ConfirmRecipe'
+    | 'SelectingRecipe'
+    | 'PromptRecipe'
+    | 'Idle'
+    | 'Completed'
+    | null;
 }
 
 /**
@@ -99,6 +188,7 @@ export type CookingEvent =
   | { type: 'START' }
   | { type: 'CLICK' }
   | { type: 'SEARCH_RECIPE'; query: string }
+  | { type: 'SELECT_RECIPE'; index?: number; query?: string }
   | { type: 'AFFIRM' }
   | { type: 'DENY' }
   | { type: 'NEXT_STEP' }
@@ -106,17 +196,22 @@ export type CookingEvent =
   | { type: 'REPEAT_STEP' }
   | { type: 'GOTO_STEP'; stepNumber: number }
   | { type: 'QUERY_INGREDIENT'; ingredient?: string }
+  | { type: 'QUERY_STEP_DETAIL'; query: string; stepNumber?: number }
+  | { type: 'INQUIRE_TECHNIQUE'; query: string }
+  | { type: 'INQUIRE_SUBSTITUTION'; ingredient?: string; query: string }
   | { type: 'SET_TIMER'; durationSeconds: number; label?: string }
   | { type: 'CHECK_TIMER'; label?: string }
   | { type: 'CANCEL_TIMER'; label?: string; id?: string }
   | { type: 'TIMER_EXPIRED'; id: string; label: string }
   | { type: 'TIMERS_UPDATED'; timers: readonly ActiveTimer[] }
   | { type: 'SKIP_PREP' }
+  | { type: 'WAKE_WORD'; modelName?: string; score?: number }
+  | { type: 'PTT_TRIGGER' }
   | { type: 'SPEAK_COMPLETE' }
   | { type: 'ASRTTS_READY' }
   | { type: 'ASR_NOINPUT' }
   | { type: 'LISTEN_COMPLETE' }
-  | { type: 'RECOGNISED'; value: Hypothesis[] }
+  | { type: 'RECOGNISED'; value: Hypothesis[]; bargeIn?: boolean }
   | { type: 'UNKNOWN' }
   | { type: 'HELP' }
   | { type: 'GREETING' }

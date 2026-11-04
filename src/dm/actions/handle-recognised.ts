@@ -1,4 +1,4 @@
-import { ROLES } from '../../constants';
+import { DEFAULT_CONVERSATION_WINDOW, ROLES } from '../../constants';
 import { parseUtterance } from '../../semantic-parser';
 import type { CookingContext, CookingEvent } from '../types';
 
@@ -21,11 +21,11 @@ export async function handleRecognisedAction({
   const utterance = event.value[0]?.utterance?.trim();
   if (!utterance) return;
 
-  // extract recent conversation context (up to 3 turns prior to current turn, excluding system prompt)
+  // extract recent conversation context (excluding system prompt and current turn)
   const priorMessages = (context?.messages ?? []).slice(0, -1);
   const recentMessages = priorMessages
     .filter((m) => m.role === ROLES.Assistant || m.role === ROLES.User)
-    .slice(-3)
+    .slice(-DEFAULT_CONVERSATION_WINDOW)
     .map((m) => ({
       role: m.role as 'assistant' | 'user',
       content: m.content,
@@ -38,11 +38,31 @@ export async function handleRecognisedAction({
     entities: parsed.entities as Record<string, unknown> | undefined,
   });
 
+  // obtain fresh snapshot context after asynchronous semantic parsing
+  const activeSnapshot = self.getSnapshot?.() as
+    | { can?: (event: CookingEvent) => boolean; context?: CookingContext; value?: unknown }
+    | undefined;
+  const activeContext = activeSnapshot?.context ?? context;
+
   let eventToSend: CookingEvent;
   switch (parsed.act) {
     case 'SEARCH_RECIPE':
       eventToSend = { type: 'SEARCH_RECIPE', query: parsed.entities?.query || utterance };
       break;
+    case 'SELECT_RECIPE': {
+      const hasCandidates = (activeContext?.recipeCandidates?.length ?? 0) > 0;
+      if (!hasCandidates && parsed.entities?.stepNumber === undefined) {
+        // if no candidate options are active and user names a recipe, normalize to SEARCH_RECIPE
+        eventToSend = { type: 'SEARCH_RECIPE', query: parsed.entities?.query || utterance };
+      } else {
+        eventToSend = {
+          type: 'SELECT_RECIPE',
+          index: parsed.entities?.stepNumber,
+          query: parsed.entities?.query || utterance,
+        };
+      }
+      break;
+    }
     case 'AFFIRM':
       eventToSend = { type: 'AFFIRM' };
       break;
@@ -64,7 +84,7 @@ export async function handleRecognisedAction({
     case 'GOTO_STEP': {
       let targetStep = parsed.entities?.stepNumber;
       if (targetStep === -1 || (!targetStep && /\b(last|final|end)\b/i.test(utterance))) {
-        targetStep = context?.recipe?.steps.length ?? 1;
+        targetStep = activeContext?.recipe?.steps.length ?? 1;
       }
       if (typeof targetStep === 'number' && !Number.isNaN(targetStep) && targetStep >= 1) {
         eventToSend = { type: 'GOTO_STEP', stepNumber: targetStep };
@@ -73,8 +93,48 @@ export async function handleRecognisedAction({
       }
       break;
     }
-    case 'QUERY_INGREDIENT':
-      eventToSend = { type: 'QUERY_INGREDIENT', ingredient: parsed.entities?.ingredient };
+    case 'QUERY_INGREDIENT': {
+      const ingredient = parsed.entities?.ingredient;
+      const escapedIngredient = ingredient ? ingredient.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+      // route ingredient variety or clarification queries to `INQUIRE_SUBSTITUTION`
+      const isVarietyOrClarification =
+        Boolean(ingredient) &&
+        (/\b(what\s+(kind|type|sort)\s+of|which)\b/i.test(utterance) ||
+          (escapedIngredient
+            ? new RegExp(`\\bwhat\\s+${escapedIngredient}\\b`, 'i').test(utterance)
+            : false)) &&
+        !/\b(how much|how many|amount|quantity|measure|do (we|i) need)\b/i.test(utterance);
+
+      if (isVarietyOrClarification) {
+        eventToSend = {
+          type: 'INQUIRE_SUBSTITUTION',
+          ingredient,
+          query: parsed.entities?.query || utterance,
+        };
+      } else {
+        eventToSend = { type: 'QUERY_INGREDIENT', ingredient };
+      }
+      break;
+    }
+    case 'QUERY_STEP_DETAIL':
+      eventToSend = {
+        type: 'QUERY_STEP_DETAIL',
+        query: parsed.entities?.query || utterance,
+        stepNumber: parsed.entities?.stepNumber,
+      };
+      break;
+    case 'INQUIRE_TECHNIQUE':
+      eventToSend = {
+        type: 'INQUIRE_TECHNIQUE',
+        query: parsed.entities?.query || utterance,
+      };
+      break;
+    case 'INQUIRE_SUBSTITUTION':
+      eventToSend = {
+        type: 'INQUIRE_SUBSTITUTION',
+        ingredient: parsed.entities?.ingredient,
+        query: parsed.entities?.query || utterance,
+      };
       break;
     case 'SET_TIMER': {
       const duration = Number(parsed.entities?.durationSeconds) || 60;
