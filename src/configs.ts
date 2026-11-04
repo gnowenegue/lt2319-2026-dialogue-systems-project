@@ -1,5 +1,5 @@
 import type { Settings } from 'speechstate';
-
+import { AzurePushStreamAdapter } from './audio';
 import { REGION } from './constants';
 
 /**
@@ -21,18 +21,41 @@ const azureCredentials = {
   key: speechKey,
 };
 
+let pushStreamAdapterInstance: AzurePushStreamAdapter | null = null;
+
+/**
+ * returns singleton instance of `AzurePushStreamAdapter`
+ */
+const getPushStreamAdapter = (): AzurePushStreamAdapter => {
+  if (!pushStreamAdapterInstance) {
+    pushStreamAdapterInstance = new AzurePushStreamAdapter();
+  }
+  return pushStreamAdapterInstance;
+};
+
+/**
+ * factory creating SpeechState runtime settings with optional custom audio stream
+ */
+const createSettings = (audioConfig?: Settings['audioConfig']): Settings => ({
+  azureCredentials: azureCredentials,
+  azureRegion: speechRegion,
+  asrDefaultCompleteTimeout: 0,
+  asrDefaultNoInputTimeout: 10000,
+  locale: 'en-US',
+  ttsDefaultVoice: 'en-US-DavisNeural',
+  ttsDefaultSpeechRate: 1.15,
+  bargeIn: false,
+  audioConfig,
+});
+
 /**
  * SpeechState runtime settings configuring Azure ASR, TTS voice, locale, and timeouts
  */
 const settings: Settings = {
-  azureCredentials: azureCredentials,
-  azureRegion: speechRegion,
-  asrDefaultCompleteTimeout: 0,
-  asrDefaultNoInputTimeout: 5000,
-  locale: 'en-US',
-  ttsDefaultVoice: 'en-US-DavisNeural',
-  ttsDefaultSpeechRate: 1.15,
-  bargeIn: {},
+  ...createSettings(),
+  get audioConfig() {
+    return getPushStreamAdapter().audioConfig;
+  },
 };
 
-export { azureCredentials, getEnv, settings };
+export { azureCredentials, createSettings, getEnv, getPushStreamAdapter, settings };

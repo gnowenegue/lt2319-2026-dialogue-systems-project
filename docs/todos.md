@@ -48,10 +48,10 @@ flowchart TD
 
 ## Phase 3: Audio Pipeline & Wake-Word
 
-- [ ] Web Audio pipeline (16 kHz mono) with 500ms pre-roll circular buffer
-- [ ] Custom Azure `PushAudioInputStream` adapter for SpeechState
-- [ ] In-browser local wake-word engine (`openWakeWord` via ONNX Runtime Web)
-- [ ] Spacebar Push-to-Talk (PTT) hotkey as live demo fallback
+- [x] Web Audio pipeline (16 kHz mono) with 500ms pre-roll circular buffer
+- [x] Custom Azure `PushAudioInputStream` adapter for SpeechState
+- [x] In-browser local wake-word engine (`openWakeWord` via ONNX Runtime Web)
+- [x] Spacebar Push-to-Talk (PTT) hotkey as live demo fallback
 
 ---
 

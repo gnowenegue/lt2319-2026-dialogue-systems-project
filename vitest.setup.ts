@@ -1,5 +1,6 @@
 // polyfill browser globals required by SpeechState in Node.js test environment
 if (typeof window === 'undefined') {
+  globalThis.self = globalThis as unknown as Window & typeof globalThis;
   globalThis.document = {
     createElement: () => ({
       setAttribute: () => {},
