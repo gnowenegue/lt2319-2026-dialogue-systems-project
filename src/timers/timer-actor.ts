@@ -115,6 +115,22 @@ export const timerActorLogic = fromCallback<
         notifyTimersUpdated();
         break;
       }
+      case 'EXPIRE_TIMER': {
+        const target = activeTimers.find((t) => t.id === event.id);
+        if (target) {
+          activeTimers = activeTimers.filter((t) => t.id !== event.id);
+          syncHeartbeat();
+          const expiredEvent: TimerActorEmittedEvent = {
+            type: 'TIMER_EXPIRED',
+            id: target.id,
+            label: target.label,
+          };
+          sendBack(expiredEvent);
+          emit(expiredEvent);
+          notifyTimersUpdated();
+        }
+        break;
+      }
       case 'RESET_TIMERS': {
         activeTimers = [];
         syncHeartbeat();

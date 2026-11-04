@@ -178,6 +178,10 @@ export interface CookingContext {
     | 'Idle'
     | 'Completed'
     | null;
+  /**
+   * proposed timer for the active cooking step awaiting user confirmation
+   */
+  pendingStepTimer?: { durationSeconds: number; label: string } | null;
 }
 
 /**
@@ -201,6 +205,7 @@ export type CookingEvent =
   | { type: 'SET_TIMER'; durationSeconds: number; label?: string }
   | { type: 'CHECK_TIMER'; label?: string }
   | { type: 'CANCEL_TIMER'; label?: string; id?: string }
+  | { type: 'EXPIRE_TIMER'; id: string }
   | { type: 'TIMER_EXPIRED'; id: string; label: string }
   | { type: 'TIMERS_UPDATED'; timers: readonly ActiveTimer[] }
   | { type: 'SKIP_PREP' }

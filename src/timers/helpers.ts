@@ -8,23 +8,25 @@ import type { HeartbeatController } from './types';
 /**
  * calculates remaining seconds from target timestamp, clamped to zero
  */
-export function calculateRemainingSeconds(
+export const calculateRemainingSeconds = (
   targetTimestamp: number,
   now = Date.now(),
   toleranceMs = TIMER_JITTER_TOLERANCE_MS,
-): number {
+): number => {
   const diff = targetTimestamp - now;
   if (diff <= toleranceMs) {
     return 0;
   }
   return Math.ceil(diff / 1000);
-}
+};
 
 /**
  * creates an unthrottled heartbeat controller using Web Worker when available,
  * falling back to standard interval in Node.js test environments
  */
-export function createHeartbeat(intervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS): HeartbeatController {
+export const createHeartbeat = (
+  intervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS,
+): HeartbeatController => {
   const hasWorker =
     typeof window !== 'undefined' &&
     typeof window.Worker !== 'undefined' &&
@@ -104,4 +106,4 @@ export function createHeartbeat(intervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS): Hea
       }
     },
   };
-}
+};

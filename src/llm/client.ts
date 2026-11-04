@@ -27,7 +27,7 @@ const resolveGroqBaseUrl = (): string => {
 /**
  * creates a configured OpenAI client instance pointing to Groq cloud or local Ollama
  */
-export function createLlmClient(config?: LlmClientConfig): OpenAI {
+export const createLlmClient = (config?: LlmClientConfig): OpenAI => {
   // configure Groq cloud endpoint if valid API key is present, otherwise fallback to local Ollama
   const activeBaseUrl =
     config?.baseURL ??
@@ -40,7 +40,7 @@ export function createLlmClient(config?: LlmClientConfig): OpenAI {
     apiKey: activeApiKey,
     dangerouslyAllowBrowser: true,
   });
-}
+};
 
 /**
  * active LLM model identifier depending on whether Groq API key is present or falling back to local Ollama

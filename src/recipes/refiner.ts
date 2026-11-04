@@ -1,4 +1,4 @@
-import { ACTIVE_REFINER_MODEL, createChatCompletion } from '../llm';
+import { ACTIVE_REFINER_MODEL, createChatCompletion, safeExtractJson } from '../llm';
 import prompts from '../prompts';
 import { REFINER_TEMPERATURE } from './constants';
 import { calculateTotalMinutes, normalizeMealDBRecipe } from './normalizer';
@@ -11,7 +11,7 @@ import type {
 } from './types';
 
 // parse and format ingredients returned by the LLM
-function parseRefinedIngredients(ingredients?: Partial<RecipeIngredient>[]): RecipeIngredient[] {
+const parseRefinedIngredients = (ingredients?: Partial<RecipeIngredient>[]): RecipeIngredient[] => {
   if (!Array.isArray(ingredients)) {
     return [];
   }
@@ -27,10 +27,10 @@ function parseRefinedIngredients(ingredients?: Partial<RecipeIngredient>[]): Rec
 
     return [{ name, measure, text }];
   });
-}
+};
 
 // parse and index cooking steps returned by the LLM
-function parseRefinedSteps(steps?: Partial<RecipeStep>[]): RecipeStep[] {
+const parseRefinedSteps = (steps?: Partial<RecipeStep>[]): RecipeStep[] => {
   if (!Array.isArray(steps)) {
     return [];
   }
@@ -45,17 +45,17 @@ function parseRefinedSteps(steps?: Partial<RecipeStep>[]): RecipeStep[] {
     instruction: item.instruction,
     estimatedMinutes: item.estimatedMinutes,
   }));
-}
+};
 
 /**
  * refines a raw TheMealDB meal record using an LLM to reconcile ingredient discrepancies
  * and clean step instructions for spoken dialogue delivery.
  * falls back gracefully to deterministic normalization if the LLM request fails.
  */
-export async function refineRecipeWithLLM(
+export const refineRecipeWithLLM = async (
   meal: MealDBMeal,
   options: RefinerOptions = {},
-): Promise<NormalizedRecipe> {
+): Promise<NormalizedRecipe> => {
   const base = normalizeMealDBRecipe(meal);
   try {
     const { content } = await createChatCompletion({
@@ -70,7 +70,11 @@ export async function refineRecipeWithLLM(
       temperature: REFINER_TEMPERATURE,
     });
 
-    const parsed = JSON.parse(content || '{}');
+    const parsed =
+      safeExtractJson<{
+        ingredients?: Partial<RecipeIngredient>[];
+        steps?: Partial<RecipeStep>[];
+      }>(content) ?? {};
     const ingredients = parseRefinedIngredients(parsed.ingredients);
     const steps = parseRefinedSteps(parsed.steps);
 
@@ -89,4 +93,4 @@ export async function refineRecipeWithLLM(
     console.warn('[RecipeRefiner] Refinement failed, falling back to base recipe:', error);
     return base;
   }
-}
+};

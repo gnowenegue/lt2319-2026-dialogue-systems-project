@@ -29,7 +29,7 @@ const printDivider = (title: string): void => {
 /**
  * test semantic parsing across common voice commands and entity slots
  */
-async function testSemanticParser(): Promise<void> {
+const testSemanticParser = async (): Promise<void> => {
   printDivider('1. Testing Semantic Parser (Groq / LLM)');
 
   const testUtterances = [
@@ -55,12 +55,12 @@ async function testSemanticParser(): Promise<void> {
       console.log('-> Entities: {} (none)');
     }
   }
-}
+};
 
 /**
  * test default conversational persona for speech conciseness (<25 words)
  */
-async function testSystemDefault(): Promise<void> {
+const testSystemDefault = async (): Promise<void> => {
   printDivider('2. Testing systemDefault (Conversational Assistance & Help)');
 
   // tests whether the model avoids bulleted feature lists and stays under 25 words
@@ -86,12 +86,12 @@ async function testSystemDefault(): Promise<void> {
   console.log(
     `\nWord count: ${wordCount} words (Target: <= 25 words -> ${wordCount <= 25 ? 'PASS' : 'WARN: EXCEEDS 25'})`,
   );
-}
+};
 
 /**
  * test RAG retrieval + spoken synthesis prompt grounding and safety
  */
-async function testSystemRAG(): Promise<void> {
+const testSystemRAG = async (): Promise<void> => {
   printDivider('3. Testing systemRAG (Qdrant Retrieval + Spoken Synthesis)');
 
   const queries = [
@@ -156,12 +156,12 @@ async function testSystemRAG(): Promise<void> {
       `Word count: ${wordCount} words (Target: <= 25 words -> ${wordCount <= 25 ? 'PASS' : 'WARN: EXCEEDS 25'})`,
     );
   }
-}
+};
 
 /**
  * test recipe refinement with TheMealDB data
  */
-async function testRecipeRefinement(): Promise<void> {
+const testRecipeRefinement = async (): Promise<void> => {
   printDivider('4. Testing recipeRefinement (TheMealDB Normalization & TTS Cleanup)');
 
   console.log('Fetching sample recipe "Spicy Arrabiata Penne" from TheMealDB...');
@@ -196,14 +196,14 @@ async function testRecipeRefinement(): Promise<void> {
       `  * Step ${st.stepNumber} (${words}w${st.estimatedMinutes ? `, ${st.estimatedMinutes}m` : ''}): "${st.instruction}"`,
     );
   });
-}
+};
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * orchestrates the test suite with CLI section filtering and rate-limit pacing
  */
-async function main(): Promise<void> {
+const main = async (): Promise<void> => {
   const target = process.argv[2]?.toLowerCase();
   console.log(`Active Voice Model: ${ACTIVE_LLM_MODEL}`);
   console.log(`Active Refiner Model: ${ACTIVE_REFINER_MODEL}`);
@@ -234,6 +234,6 @@ async function main(): Promise<void> {
     console.error('\nTest Suite encountered an error:', error);
     process.exit(1);
   }
-}
+};
 
 main();

@@ -390,13 +390,67 @@ body {
 }
 
 .timers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.6rem 0.85rem;
   margin-bottom: 0.85rem;
   border-radius: 8px;
-  background-color: rgba(251, 191, 36, 0.12);
+  background-color: rgba(251, 191, 36, 0.08);
   border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.timer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.65rem;
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 6px;
   font-size: 0.88em;
   color: #fde68a;
+}
+
+.timer-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timer-label {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.timer-countdown {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.btn-expire-timer {
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-expire-timer:hover {
+  background: #c2410c;
+}
+
+.btn-expire-timer:active {
+  transform: scale(0.96);
 }
 
 /* Card Utility Toolbar & Copy Button */
@@ -657,6 +711,22 @@ body {
     background-color: #fef3c7;
     border: 1px solid #fde68a;
     color: #92400e;
+  }
+  .timer-card {
+    background-color: #ffffff;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+  }
+  .timer-countdown {
+    color: #b45309;
+    background: #fef3c7;
+  }
+  .btn-expire-timer {
+    background: #ea580c;
+    color: #ffffff;
+  }
+  .btn-expire-timer:hover {
+    background: #c2410c;
   }
   .system-prompt-card {
     background-color: #f5f3ff;

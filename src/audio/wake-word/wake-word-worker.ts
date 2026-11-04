@@ -42,11 +42,11 @@ const postReply = (message: WakeWordWorkerOutMessage): void => {
 /**
  * loads all three ONNX models into memory
  */
-async function initSessions(
+const initSessions = async (
   modelsPath: string,
   modelName: string,
   threshold: number,
-): Promise<void> {
+): Promise<void> => {
   currentModelName = modelName;
   currentThreshold = threshold;
 
@@ -79,12 +79,12 @@ async function initSessions(
   accumulatedEmbFrames = 0;
 
   postReply({ type: 'READY' });
-}
+};
 
 /**
  * processes a single 16 kHz 1,280-sample audio chunk through the 3-stage openWakeWord pipeline
  */
-async function processChunk(chunk: Int16Array): Promise<void> {
+const processChunk = async (chunk: Int16Array): Promise<void> => {
   if (!melSession || !embSession || !wwSession) {
     return;
   }
@@ -172,7 +172,7 @@ async function processChunk(chunk: Int16Array): Promise<void> {
       modelName: currentModelName,
     });
   }
-}
+};
 
 /**
  * worker message event listener

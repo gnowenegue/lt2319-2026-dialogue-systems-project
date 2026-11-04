@@ -2,7 +2,7 @@ import { ROLES } from './constants';
 import type { Message, SpeechStatus } from './dm/types';
 import prompts from './prompts';
 import type { NormalizedRecipe } from './recipes/types';
-import type { ActiveTimer } from './timers/types';
+import { calculateRemainingSeconds, type ActiveTimer } from './timers';
 
 export interface DOMElements {
   startButton: HTMLButtonElement | null;
@@ -23,7 +23,7 @@ export interface DOMElements {
 /**
  * queries and returns cached references to all application DOM elements
  */
-export function getDOMElements(): DOMElements {
+export const getDOMElements = (): DOMElements => {
   return {
     startButton: document.querySelector<HTMLButtonElement>('#start-btn'),
     statusCard: document.querySelector<HTMLElement>('#status-card'),
@@ -39,12 +39,12 @@ export function getDOMElements(): DOMElements {
     systemPromptText: document.querySelector<HTMLElement>('#system-prompt-text'),
     chatHistory: document.querySelector<HTMLElement>('#chat-history'),
   };
-}
+};
 
 /**
  * creates an individual message row element with speaker label, metadata badges, and bubble
  */
-export function createMessageElement(msg: Message): HTMLElement {
+export const createMessageElement = (msg: Message): HTMLElement => {
   const rowEl = document.createElement('div');
   rowEl.className = `message-row ${msg.role}-row`;
 
@@ -86,12 +86,12 @@ export function createMessageElement(msg: Message): HTMLElement {
   rowEl.appendChild(headerEl);
   rowEl.appendChild(bubbleEl);
   return rowEl;
-}
+};
 
 /**
  * renders conversation message items into the scrollable history feed
  */
-export function renderChatHistory(container: HTMLElement, messages: Message[]): void {
+export const renderChatHistory = (container: HTMLElement, messages: Message[]): void => {
   // declarative functional message element mapping
   const messageElements = messages.map(createMessageElement);
   container.replaceChildren(...messageElements);
@@ -100,7 +100,7 @@ export function renderChatHistory(container: HTMLElement, messages: Message[]): 
     top: container.scrollHeight,
     behavior: 'smooth',
   });
-}
+};
 
 export interface VoiceIndicatorElements {
   statusCard: HTMLElement | null;
@@ -135,7 +135,10 @@ const VOICE_HERO_COPY: Record<SpeechStatus, { title: string; subtitle: string }>
 /**
  * updates prominent voice hero banner and ambient card glow
  */
-export function updateVoiceIndicator(status: SpeechStatus, elements: VoiceIndicatorElements): void {
+export const updateVoiceIndicator = (
+  status: SpeechStatus,
+  elements: VoiceIndicatorElements,
+): void => {
   if (elements.statusCard) {
     elements.statusCard.classList.remove(
       'card-glow-idle',
@@ -156,16 +159,16 @@ export function updateVoiceIndicator(status: SpeechStatus, elements: VoiceIndica
   const copy = VOICE_HERO_COPY[status] ?? VOICE_HERO_COPY.idle;
   elements.voiceHeroTitle.textContent = copy.title;
   elements.voiceHeroSubtitle.textContent = copy.subtitle;
-}
+};
 
 /**
  * updates recipe title and active step progress label
  */
-export function updateRecipeProgress(
+export const updateRecipeProgress = (
   element: HTMLElement | null,
   recipe: NormalizedRecipe | null | undefined,
   currentStepIndex: number,
-): void {
+): void => {
   if (!element) return;
 
   if (recipe?.title) {
@@ -175,34 +178,107 @@ export function updateRecipeProgress(
   } else {
     element.textContent = 'No active recipe';
   }
-}
+};
 
 /**
- * updates active timer list label and visibility
+ * formats remaining seconds into an mm:ss countdown display
  */
-export function updateTimersDisplay(
+export const formatTimeRemaining = (seconds: number): string => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+/**
+ * creates an individual timer card element with label, live countdown, and manual expire button
+ */
+export const createTimerElement = (
+  timer: ActiveTimer,
+  onExpire?: (timerId: string) => void,
+): HTMLElement => {
+  const cardEl = document.createElement('div');
+  cardEl.className = 'timer-card';
+  cardEl.dataset.timerId = timer.id;
+
+  const infoEl = document.createElement('div');
+  infoEl.className = 'timer-info';
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'timer-label';
+  labelEl.textContent = `⏱️ ${timer.label}`;
+
+  const countdownEl = document.createElement('span');
+  countdownEl.className = 'timer-countdown';
+  countdownEl.dataset.timestamp = String(timer.targetTimestamp);
+  countdownEl.textContent = formatTimeRemaining(calculateRemainingSeconds(timer.targetTimestamp));
+
+  infoEl.appendChild(labelEl);
+  infoEl.appendChild(countdownEl);
+
+  const expireBtn = document.createElement('button');
+  expireBtn.type = 'button';
+  expireBtn.className = 'btn-expire-timer';
+  expireBtn.dataset.timerId = timer.id;
+  expireBtn.textContent = 'Expire';
+  expireBtn.title = `Manually expire ${timer.label} timer for demo`;
+
+  if (onExpire) {
+    expireBtn.addEventListener('click', () => {
+      onExpire(timer.id);
+    });
+  }
+
+  cardEl.appendChild(infoEl);
+  cardEl.appendChild(expireBtn);
+  return cardEl;
+};
+
+let timerCountdownInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * updates active timer list, rendering individual timer cards with live countdowns
+ */
+export const updateTimersDisplay = (
   element: HTMLElement | null,
   activeTimers: readonly ActiveTimer[] = [],
-): void {
+  onExpire?: (timerId: string) => void,
+): void => {
   if (!element) return;
 
   if (activeTimers.length > 0) {
-    element.style.display = 'block';
-    element.textContent = `⏱️ Active Timers: ${activeTimers.map((t) => t.label).join(', ')}`;
+    element.style.display = 'flex';
+    const timerCards = activeTimers.map((timer) => createTimerElement(timer, onExpire));
+    element.replaceChildren(...timerCards);
+
+    if (!timerCountdownInterval) {
+      timerCountdownInterval = setInterval(() => {
+        const countdownEls = element.querySelectorAll<HTMLElement>('.timer-countdown');
+        countdownEls.forEach((el) => {
+          const timestamp = Number(el.dataset.timestamp);
+          if (timestamp) {
+            el.textContent = formatTimeRemaining(calculateRemainingSeconds(timestamp));
+          }
+        });
+      }, 1000);
+    }
   } else {
     element.style.display = 'none';
-    element.textContent = '';
+    element.replaceChildren();
+    if (timerCountdownInterval) {
+      clearInterval(timerCountdownInterval);
+      timerCountdownInterval = null;
+    }
   }
-}
+};
 
 /**
  * updates primary action button label and visibility depending on machine state
  */
-export function updateActionButton(
+export const updateActionButton = (
   button: HTMLButtonElement | null,
   stateStr: string,
   isPaused: boolean,
-): void {
+): void => {
   if (!button) return;
 
   if (stateStr === 'Idle') {
@@ -217,23 +293,23 @@ export function updateActionButton(
   } else {
     button.style.display = 'none';
   }
-}
+};
 
 /**
  * updates system prompt debug text display
  */
-export function updateSystemPrompt(element: HTMLElement | null, messages: Message[]): void {
+export const updateSystemPrompt = (element: HTMLElement | null, messages: Message[]): void => {
   if (!element) return;
 
   const systemPrompt =
     messages.find((m) => m.role === ROLES.System)?.content ?? prompts.systemDefault;
   element.textContent = systemPrompt;
-}
+};
 
 /**
  * copies text to clipboard with hidden textarea fallback
  */
-export async function copyToClipboard(text: string): Promise<boolean> {
+export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
@@ -260,17 +336,17 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     console.error('[CookMate] Fallback copy also failed:', err);
     return false;
   }
-}
+};
 
 /**
  * binds clipboard export handler and visual feedback to the copy debug button
  */
-export function setupCopyDebugButton(
+export const setupCopyDebugButton = (
   copyDebugBtn: HTMLButtonElement | null,
   copyBtnIconEl: HTMLElement | null,
   copyBtnTextEl: HTMLElement | null,
   getReportJson: () => string,
-): void {
+): void => {
   if (!copyDebugBtn) return;
 
   copyDebugBtn.addEventListener('click', async () => {
@@ -298,4 +374,4 @@ export function setupCopyDebugButton(
       }, 2000);
     }
   });
-}
+};

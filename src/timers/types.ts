@@ -14,6 +14,7 @@ export interface ActiveTimer {
 export type TimerActorInputEvent =
   | { type: 'START_TIMER'; id: string; label: string; durationSeconds: number }
   | { type: 'CANCEL_TIMER'; id?: string; label?: string }
+  | { type: 'EXPIRE_TIMER'; id: string }
   | { type: 'RESET_TIMERS' }
   | { type: 'QUERY_TIMERS' };
 

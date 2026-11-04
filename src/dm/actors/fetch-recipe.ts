@@ -12,19 +12,19 @@ import type { RecipeCandidate, SearchRecipeOutput } from '../types';
 /**
  * removes common conversational determiners (e.g. "some", "a", "an", "the")
  */
-function cleanRecipeQuery(rawQuery: string): string {
+const cleanRecipeQuery = (rawQuery: string): string => {
   return rawQuery
     .trim()
     .replace(/^(?:some|a|an|the|any)\s+/i, '')
     .trim();
-}
+};
 
 /**
  * transforms meal search matches into either a single refined recipe or up to 3 candidate suggestions
  */
-async function resolveMealResults(
+const resolveMealResults = async (
   meals: readonly { idMeal: string; strMeal: string }[],
-): Promise<SearchRecipeOutput> {
+): Promise<SearchRecipeOutput> => {
   if (meals.length === 1) {
     const refined = await getRefinedRecipe(meals[0].idMeal);
     if (!refined) {
@@ -41,7 +41,7 @@ async function resolveMealResults(
   }));
 
   return { kind: 'multiple', candidates };
-}
+};
 
 /**
  * searches TheMealDB for recipes: returns a single refined recipe if only 1 match, or multiple candidates

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActor } from 'xstate';
 
 import { calculateRemainingSeconds, createHeartbeat, timerActorLogic } from '..';
+import { formatTimeRemaining } from '../../ui';
 import type { ActiveTimer } from '../types';
 
 describe('Timer - Helper Functions', () => {
@@ -12,6 +13,13 @@ describe('Timer - Helper Functions', () => {
     expect(calculateRemainingSeconds(now + 40, now)).toBe(0); // within 50ms tolerance
     expect(calculateRemainingSeconds(now, now)).toBe(0);
     expect(calculateRemainingSeconds(now - 3000, now)).toBe(0);
+  });
+
+  it('formats remaining seconds into mm:ss countdown display', () => {
+    expect(formatTimeRemaining(600)).toBe('10:00');
+    expect(formatTimeRemaining(75)).toBe('01:15');
+    expect(formatTimeRemaining(9)).toBe('00:09');
+    expect(formatTimeRemaining(0)).toBe('00:00');
   });
 });
 
@@ -344,6 +352,52 @@ describe('Timer - Lifecycle & Event Messaging', () => {
 
     vi.advanceTimersByTime(5000);
     expect(expiredEvents).toHaveLength(0);
+
+    actor.stop();
+  });
+
+  it('manually expires a specific timer when EXPIRE_TIMER is received', () => {
+    const expiredEvents: Array<{ type: string; id: string; label: string }> = [];
+    let latestTimers: readonly ActiveTimer[] = [];
+
+    const actor = createActor(timerActorLogic);
+    actor.on('TIMER_EXPIRED', (event) => {
+      expiredEvents.push(event);
+    });
+    actor.on('TIMERS_UPDATED', (event) => {
+      latestTimers = event.timers;
+    });
+
+    actor.start();
+
+    actor.send({
+      type: 'START_TIMER',
+      id: 'timer-pasta',
+      label: 'pasta',
+      durationSeconds: 300,
+    });
+    actor.send({
+      type: 'START_TIMER',
+      id: 'timer-sauce',
+      label: 'sauce',
+      durationSeconds: 600,
+    });
+
+    expect(latestTimers).toHaveLength(2);
+
+    actor.send({
+      type: 'EXPIRE_TIMER',
+      id: 'timer-pasta',
+    });
+
+    expect(expiredEvents).toHaveLength(1);
+    expect(expiredEvents[0]).toEqual({
+      type: 'TIMER_EXPIRED',
+      id: 'timer-pasta',
+      label: 'pasta',
+    });
+    expect(latestTimers).toHaveLength(1);
+    expect(latestTimers[0].id).toBe('timer-sauce');
 
     actor.stop();
   });

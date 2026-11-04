@@ -48,6 +48,18 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
       "Step 2: Heat olive oil in a large skillet over medium heat and add garlic. Let me know when you're ready.",
     );
 
+    // step 3 has estimatedMinutes: 10
+    const step3 = formatStepUtterance(mockRecipe.steps[2], 4);
+    expect(step3).toBe(
+      'Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes. Would you like me to start a timer for 10 minutes?',
+    );
+
+    // step 3 with timer already running
+    const step3Running = formatStepUtterance(mockRecipe.steps[2], 4, true);
+    expect(step3Running).toBe(
+      "Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes. Let me know when you're ready.",
+    );
+
     const step4 = formatStepUtterance(mockRecipe.steps[3], 4);
     expect(step4).toBe(
       "Final step: Toss cooked penne with sauce and garnish with fresh basil. Let me know when you're done.",

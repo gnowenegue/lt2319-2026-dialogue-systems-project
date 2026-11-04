@@ -81,6 +81,7 @@ export const cookingMachine = setup({
       selectedCandidateId: null,
       knowledgeQuery: null,
       recipePrompt: null,
+      pendingStepTimer: null,
     }),
   },
   actors: {
@@ -124,6 +125,7 @@ export const cookingMachine = setup({
     knowledgeQuery: null,
     knowledgeCategory: null,
     returnState: null,
+    pendingStepTimer: null,
   }),
   on: {
     RECOGNISED: {
@@ -247,6 +249,18 @@ export const cookingMachine = setup({
         'speakLastUtterance',
       ],
     },
+    EXPIRE_TIMER: {
+      actions: [
+        ({ context, event }) => {
+          if (context.timerRef && event.type === 'EXPIRE_TIMER') {
+            context.timerRef.send({
+              type: 'EXPIRE_TIMER',
+              id: event.id,
+            });
+          }
+        },
+      ],
+    },
     SET_TIMER: {
       actions: [
         ({ context, event }) => {
@@ -264,7 +278,10 @@ export const cookingMachine = setup({
         assign(({ context, event }) => {
           const label = event.label?.trim() || 'cooking';
           const duration = formatDurationForSpeech(event.durationSeconds);
-          return prepareAssistantSpeech(context, `Started a ${duration} timer for ${label}.`);
+          return {
+            ...prepareAssistantSpeech(context, `Started a ${duration} timer for ${label}.`),
+            pendingStepTimer: null,
+          };
         }),
         'speakLastUtterance',
       ],
@@ -642,8 +659,31 @@ export const cookingMachine = setup({
         assign(({ context }) => {
           const steps = context.recipe?.steps ?? [];
           const step = steps[context.currentStepIndex];
-          const text = step ? formatStepUtterance(step, steps.length) : 'All steps completed.';
-          return prepareAssistantSpeech(context, text);
+          if (!step) {
+            return {
+              ...prepareAssistantSpeech(context, 'All steps completed.'),
+              pendingStepTimer: null,
+            };
+          }
+          const stepLabel = `step ${step.stepNumber}`;
+          const isTimerRunning = (context.activeTimers ?? []).some(
+            (t) => t.label.toLowerCase() === stepLabel.toLowerCase(),
+          );
+          const hasDuration = Boolean(step.estimatedMinutes && step.estimatedMinutes > 0);
+          const shouldPromptTimer = hasDuration && !isTimerRunning;
+
+          const text = formatStepUtterance(step, steps.length, isTimerRunning);
+          const speechUpdates = prepareAssistantSpeech(context, text);
+
+          return {
+            ...speechUpdates,
+            pendingStepTimer: shouldPromptTimer
+              ? {
+                  durationSeconds: (step.estimatedMinutes ?? 0) * 60,
+                  label: stepLabel,
+                }
+              : null,
+          };
         }),
         'speakLastUtterance',
       ],
@@ -673,7 +713,36 @@ export const cookingMachine = setup({
           guard: 'isUnderNoInputLimit',
           actions: ['setListening', 'spst.listen'],
         },
-        AFFIRM: advanceCookingStepTransition,
+        AFFIRM: [
+          {
+            guard: 'hasPendingStepTimer',
+            actions: [
+              ({ context }) => {
+                if (context.timerRef && context.pendingStepTimer) {
+                  const id = `timer-${Date.now()}`;
+                  context.timerRef.send({
+                    type: 'START_TIMER',
+                    id,
+                    label: context.pendingStepTimer.label,
+                    durationSeconds: context.pendingStepTimer.durationSeconds,
+                  });
+                }
+              },
+              assign(({ context }) => {
+                const label = context.pendingStepTimer?.label || 'cooking';
+                const duration = formatDurationForSpeech(
+                  context.pendingStepTimer?.durationSeconds ?? 0,
+                );
+                return {
+                  ...prepareAssistantSpeech(context, `Started a ${duration} timer for ${label}.`),
+                  pendingStepTimer: null,
+                };
+              }),
+              'speakLastUtterance',
+            ],
+          },
+          ...advanceCookingStepTransition,
+        ],
         NEXT_STEP: advanceCookingStepTransition,
         PREVIOUS_STEP: [
           {
@@ -687,12 +756,24 @@ export const cookingMachine = setup({
             target: 'AnnounceStep',
           },
         ],
-        DENY: {
-          actions: [
-            assign(({ context }) => prepareAssistantSpeech(context, prompts.stepWaiting)),
-            'speakLastUtterance',
-          ],
-        },
+        DENY: [
+          {
+            guard: 'hasPendingStepTimer',
+            actions: [
+              assign(({ context }) => ({
+                ...prepareAssistantSpeech(context, prompts.stepWaiting),
+                pendingStepTimer: null,
+              })),
+              'speakLastUtterance',
+            ],
+          },
+          {
+            actions: [
+              assign(({ context }) => prepareAssistantSpeech(context, prompts.stepWaiting)),
+              'speakLastUtterance',
+            ],
+          },
+        ],
         REPEAT_STEP: 'AnnounceStep',
         GOTO_STEP: gotoStepTransition,
       },

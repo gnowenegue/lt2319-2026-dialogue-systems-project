@@ -5,7 +5,7 @@ import { EMBEDDING_MODEL } from './constants';
 let isEnvConfigured = false;
 
 // configures local model path and disables remote network fetching for transformers
-function ensureTransformersEnv(): void {
+const ensureTransformersEnv = (): void => {
   if (isEnvConfigured) {
     return;
   }
@@ -18,7 +18,7 @@ function ensureTransformersEnv(): void {
   env.allowLocalModels = true;
   env.allowRemoteModels = false;
   isEnvConfigured = true;
-}
+};
 
 // lazy load the embedding pipeline once with retry on rejection
 let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;

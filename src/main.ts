@@ -51,16 +51,16 @@ let audioStarted = false;
 /**
  * flushes audio pre-roll buffer to Azure push stream
  */
-function flushPreRoll(): void {
+const flushPreRoll = (): void => {
   const preRoll = audioPipeline.getPreRoll();
   pushStreamAdapter.startStreaming(preRoll);
   audioPipeline.clearPreRoll();
-}
+};
 
 /**
  * ensures Web Audio hardware, wake word worker, and PTT hotkey are initialized
  */
-async function ensureAudioStarted(): Promise<void> {
+const ensureAudioStarted = async (): Promise<void> => {
   if (audioStarted) return;
   audioStarted = true;
 
@@ -86,7 +86,7 @@ async function ensureAudioStarted(): Promise<void> {
     audioStarted = false;
     console.error('[CookMate] Error initializing audio pipeline:', err);
   }
-}
+};
 
 // auto-start microphone and wake word engine on load
 ensureAudioStarted().catch(() => {});
@@ -108,7 +108,7 @@ window.addEventListener('keydown', startAudioOnInteraction, { once: true });
 /**
  * handles wake word detection or manual PTT toggle
  */
-async function handleTrigger(source: 'wake-word' | 'ptt'): Promise<void> {
+const handleTrigger = async (source: 'wake-word' | 'ptt'): Promise<void> => {
   await ensureAudioStarted();
   flushPreRoll();
 
@@ -120,7 +120,7 @@ async function handleTrigger(source: 'wake-word' | 'ptt'): Promise<void> {
   } else {
     dmActor.send(source === 'wake-word' ? { type: 'WAKE_WORD' } : { type: 'PTT_TRIGGER' });
   }
-}
+};
 
 // listen for wake word detection
 wakeWordEngine.onTrigger((detection) => {
@@ -189,7 +189,9 @@ dmActor.subscribe((snapshot) => {
     snapshot.context.recipe,
     snapshot.context.currentStepIndex,
   );
-  updateTimersDisplay(dom.timersContainer, snapshot.context.activeTimers);
+  updateTimersDisplay(dom.timersContainer, snapshot.context.activeTimers, (timerId) => {
+    dmActor.send({ type: 'EXPIRE_TIMER', id: timerId });
+  });
   updateSystemPrompt(dom.systemPromptText, snapshot.context.messages);
 
   if (dom.chatHistory && snapshot.context.messages !== previousMessages) {

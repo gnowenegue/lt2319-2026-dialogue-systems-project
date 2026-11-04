@@ -8,7 +8,7 @@ import type { QueryStepDetailInput } from '../types';
 /**
  * answers in-memory factual queries about the active cooking step using grounded LLM inference
  */
-export async function queryStepDetail(input: QueryStepDetailInput): Promise<string> {
+export const queryStepDetail = async (input: QueryStepDetailInput): Promise<string> => {
   const trimmed = input.query.trim();
   if (!trimmed) {
     return 'What would you like to know about this step?';
@@ -36,7 +36,7 @@ export async function queryStepDetail(input: QueryStepDetailInput): Promise<stri
   });
 
   return content || "I don't see that mentioned in this step.";
-}
+};
 
 /**
  * actor logic answering step detail questions within the dialogue state machine

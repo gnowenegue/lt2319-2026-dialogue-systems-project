@@ -78,12 +78,12 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
       "Step 2: Heat olive oil in a large skillet over medium heat and add garlic. Let me know when you're ready.",
     );
 
-    // step 9: user completes step 2 -> advance to Step 3
+    // step 9: user completes step 2 -> advance to Step 3 (timed step)
     actor.send({ type: 'NEXT_STEP' });
     expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
     expect(actor.getSnapshot().context.currentStepIndex).toBe(2);
     expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      "Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes. Let me know when you're ready.",
+      'Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes. Would you like me to start a timer for 10 minutes?',
     );
 
     // step 10: user completes step 3 -> advance to Step 4 (final step)

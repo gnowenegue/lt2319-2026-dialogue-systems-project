@@ -31,4 +31,6 @@ export const cookingGuards = {
     context.noInputCount >= prompts.noInput.length,
   hasPendingUtterance: ({ context }: { context: CookingContext }) =>
     Boolean(context.pendingUtterance),
+  hasPendingStepTimer: ({ context }: { context: CookingContext }) =>
+    Boolean(context.pendingStepTimer),
 };

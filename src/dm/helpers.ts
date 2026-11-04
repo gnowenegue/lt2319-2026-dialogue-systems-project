@@ -9,11 +9,11 @@ import type { CookingContext, Message, RecipeCandidate, SpeechStatus } from './t
 /**
  * formats a 2-item ingredient batch for spoken delivery during mise en place prep
  */
-export function formatPrepBatchUtterance(
+export const formatPrepBatchUtterance = (
   ingredients: RecipeIngredient[],
   batchIndex: number,
   batchSize = INGREDIENTS_PER_PREP_BATCH,
-): string {
+): string => {
   const start = batchIndex * batchSize;
   const batch = ingredients.slice(start, start + batchSize);
 
@@ -34,36 +34,46 @@ export function formatPrepBatchUtterance(
   }
 
   return `Next: ${itemsText}. Got those?`;
-}
+};
 
 /**
  * determines whether additional ingredient batches remain after the current batch index
  */
-export function hasMorePrepBatches(
+export const hasMorePrepBatches = (
   ingredients: RecipeIngredient[],
   batchIndex: number,
   batchSize = INGREDIENTS_PER_PREP_BATCH,
-): boolean {
+): boolean => {
   return (batchIndex + 1) * batchSize < ingredients.length;
-}
+};
 
 /**
  * formats an active cooking step instruction for concise spoken delivery (<25 words)
  */
-export function formatStepUtterance(step: RecipeStep, totalSteps: number): string {
+export const formatStepUtterance = (
+  step: RecipeStep,
+  totalSteps: number,
+  isTimerRunning = false,
+): string => {
   const instruction = step.instruction.trim().replace(/\.$/, '');
+
+  if (step.estimatedMinutes && step.estimatedMinutes > 0 && !isTimerRunning) {
+    const duration = formatDurationForSpeech(step.estimatedMinutes * 60);
+    const prefix = step.stepNumber === totalSteps ? 'Final step' : `Step ${step.stepNumber}`;
+    return `${prefix}: ${instruction}. Would you like me to start a timer for ${duration}?`;
+  }
 
   if (step.stepNumber === totalSteps) {
     return `Final step: ${instruction}. Let me know when you're done.`;
   }
 
   return `Step ${step.stepNumber}: ${instruction}. Let me know when you're ready.`;
-}
+};
 
 /**
  * answers in-memory factual queries about ingredients with zero LLM latency
  */
-export function lookupIngredient(ingredients: RecipeIngredient[], queryName?: string): string {
+export const lookupIngredient = (ingredients: RecipeIngredient[], queryName?: string): string => {
   if (!queryName?.trim()) {
     const list = ingredients.map((item) => item.text).join(', ');
 
@@ -83,12 +93,12 @@ export function lookupIngredient(ingredients: RecipeIngredient[], queryName?: st
   }
 
   return `I don't see ${queryName} in this recipe.`;
-}
+};
 
 /**
  * formats duration in seconds into natural conversational phrasing for spoken delivery
  */
-export function formatDurationForSpeech(totalSeconds: number): string {
+export const formatDurationForSpeech = (totalSeconds: number): string => {
   const total = Math.max(0, Math.floor(totalSeconds));
   if (total === 0) {
     return '0 seconds';
@@ -116,16 +126,16 @@ export function formatDurationForSpeech(totalSeconds: number): string {
     return `${parts[0]} and ${parts[1]}`;
   }
   return `${parts[0]}, ${parts[1]} and ${parts[2]}`;
-}
+};
 
 /**
  * formats a conversational response when querying active kitchen timers
  */
-export function formatCheckTimerUtterance(
+export const formatCheckTimerUtterance = (
   activeTimers: readonly ActiveTimer[],
   queryLabel?: string,
   now = Date.now(),
-): string {
+): string => {
   if (activeTimers.length === 0) {
     return "You don't have any active timers.";
   }
@@ -159,28 +169,28 @@ export function formatCheckTimerUtterance(
   });
 
   return `You have ${activeTimers.length} active timers: ${descriptions.join(', and ')}.`;
-}
+};
 
 /**
  * formats discovered recipe candidates for concise spoken delivery (<30 words)
  */
-export function formatCandidateUtterance(candidates: readonly RecipeCandidate[]): string {
+export const formatCandidateUtterance = (candidates: readonly RecipeCandidate[]): string => {
   if (candidates.length === 0) {
     return 'No recipes found.';
   }
 
   const items = candidates.map((c) => `${c.index}) ${c.title}`).join(', ');
   return `I found ${candidates.length} options: ${items}. Which one would you like?`;
-}
+};
 
 /**
  * matches a user choice by 1-based index or candidate title match
  */
-export function matchCandidate(
+export const matchCandidate = (
   candidates: readonly RecipeCandidate[],
   index?: number,
   query?: string,
-): RecipeCandidate | null {
+): RecipeCandidate | null => {
   // numeric index match (1-indexed)
   if (typeof index === 'number' && index >= 1 && index <= candidates.length) {
     return candidates[index - 1] ?? null;
@@ -205,15 +215,15 @@ export function matchCandidate(
   });
 
   return matchByTitle ?? null;
-}
+};
 
 /**
  * creates updated assistant speech context fields and appends the spoken turn to conversation history
  */
-export function prepareAssistantSpeech(
+export const prepareAssistantSpeech = (
   context: CookingContext,
   text: string,
-): { lastSpokenUtterance: string; speechStatus: SpeechStatus; messages: Message[] } {
+): { lastSpokenUtterance: string; speechStatus: SpeechStatus; messages: Message[] } => {
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return {
     lastSpokenUtterance: text,
@@ -229,40 +239,43 @@ export function prepareAssistantSpeech(
         ]
       : context.messages,
   };
-}
+};
 
 /**
  * extracts the active return state snapshot for knowledge and step detail queries
  */
-export function resolveReturnState(
+export const resolveReturnState = (
   context: CookingContext,
   self: { getSnapshot?: () => { value?: unknown } },
-): CookingContext['returnState'] {
+): CookingContext['returnState'] => {
   if (context.returnState) return context.returnState;
   const current = self.getSnapshot?.()?.value;
   return typeof current === 'string'
     ? (current as CookingContext['returnState'])
     : 'WaitingForStepCommand';
-}
+};
 
 /**
  * extracts the primary active state name from actor snapshot
  */
-export function resolveActiveStateName(self: {
+export const resolveActiveStateName = (self: {
   getSnapshot?: () => { value?: unknown };
-}): string | undefined {
+}): string | undefined => {
   const snapshotValue = self.getSnapshot?.()?.value;
   if (typeof snapshotValue === 'string') return snapshotValue;
   if (typeof snapshotValue === 'object' && snapshotValue !== null) {
     return Object.keys(snapshotValue)[0];
   }
   return undefined;
-}
+};
 
 /**
  * resolves contextual help guidance tailored to current dialogue state
  */
-export function resolveContextualHelp(_context: CookingContext, state: string | undefined): string {
+export const resolveContextualHelp = (
+  _context: CookingContext,
+  state: string | undefined,
+): string => {
   switch (state) {
     case 'WaitingForPrepConfirmation':
     case 'AnnouncePrepBatch':
@@ -279,15 +292,15 @@ export function resolveContextualHelp(_context: CookingContext, state: string | 
     default:
       return prompts.helpPromptRecipe;
   }
-}
+};
 
 /**
  * resolves contextual greeting acknowledging current flow and prompting next step
  */
-export function resolveContextualGreeting(
+export const resolveContextualGreeting = (
   context: CookingContext,
   state: string | undefined,
-): string {
+): string => {
   const title = context.recipe?.title;
   const stepNumber = (context.currentStepIndex ?? 0) + 1;
   const totalSteps = context.recipe?.steps.length ?? 0;
@@ -314,4 +327,4 @@ export function resolveContextualGreeting(
     default:
       return prompts.promptRecipe;
   }
-}
+};

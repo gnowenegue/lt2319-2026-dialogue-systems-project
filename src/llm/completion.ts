@@ -7,9 +7,9 @@ import { recordLlmUsage } from './usage';
 /**
  * executes an OpenAI chat completion call with automatic client defaulting and session token usage tracking
  */
-export async function createChatCompletion(
+export const createChatCompletion = async (
   options: ChatCompletionOptions,
-): Promise<ChatCompletionResult> {
+): Promise<ChatCompletionResult> => {
   const client = options.client ?? openai;
   const model = options.model ?? ACTIVE_LLM_MODEL;
 
@@ -26,4 +26,4 @@ export async function createChatCompletion(
     content: completion.choices[0]?.message?.content?.trim() ?? '',
     completion,
   };
-}
+};

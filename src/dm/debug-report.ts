@@ -11,7 +11,7 @@ export interface DebugReportOptions {
 /**
  * pure helper compiling dialogue machine snapshot and conversation history into structured debug logs
  */
-export function buildDebugReport({ value, context }: DebugReportOptions) {
+export const buildDebugReport = ({ value, context }: DebugReportOptions) => {
   const topAsr = context.lastResult?.[0];
 
   return {
@@ -40,6 +40,7 @@ export function buildDebugReport({ value, context }: DebugReportOptions) {
     knowledgeQuery: context.knowledgeQuery ?? null,
     knowledgeCategory: context.knowledgeCategory ?? null,
     returnState: context.returnState ?? null,
+    pendingStepTimer: context.pendingStepTimer ?? null,
     activeTimers: (context.activeTimers ?? []).map((timer) => ({
       ...timer,
       remainingSeconds: calculateRemainingSeconds(timer.targetTimestamp),
@@ -59,4 +60,4 @@ export function buildDebugReport({ value, context }: DebugReportOptions) {
     },
     messages: context.messages ?? [],
   };
-}
+};

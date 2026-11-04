@@ -72,4 +72,63 @@ describe('Dialogue Manager - Kitchen Timers Integration', () => {
 
     actor.stop();
   });
+
+  it('proactively offers to start timer for timed steps and starts timer on AFFIRM', async () => {
+    const actor = createTestCookingActor();
+
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    actor.send({ type: 'SKIP_PREP' });
+
+    // step 1 (no timer)
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
+    expect(actor.getSnapshot().context.pendingStepTimer).toBeNull();
+
+    // advance to step 2 (no timer)
+    actor.send({ type: 'NEXT_STEP' });
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(1);
+    expect(actor.getSnapshot().context.pendingStepTimer).toBeNull();
+
+    // advance to step 3 (has estimatedMinutes: 10)
+    actor.send({ type: 'NEXT_STEP' });
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(2);
+    expect(actor.getSnapshot().context.pendingStepTimer).toEqual({
+      durationSeconds: 600,
+      label: 'step 3',
+    });
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'Step 3: Add chopped tomatoes, red chile flakes, and simmer for 10 minutes. Would you like me to start a timer for 10 minutes?',
+    );
+
+    // cook says "yes" -> AFFIRM
+    actor.send({ type: 'AFFIRM' });
+
+    // timer must have started with label "step 3"
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'Started a 10 minutes timer for step 3.',
+    );
+    // state must remain in WaitingForStepCommand and on step 3!
+    expect(actor.getSnapshot().value).toBe('WaitingForStepCommand');
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(2);
+    expect(actor.getSnapshot().context.pendingStepTimer).toBeNull();
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(1);
+    expect(actor.getSnapshot().context.activeTimers[0].label).toBe('step 3');
+
+    // manually expire the timer for demo purpose
+    const timerId = actor.getSnapshot().context.activeTimers[0].id;
+    actor.send({
+      type: 'EXPIRE_TIMER',
+      id: timerId,
+    });
+
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      "Time's up! Your step 3 timer is done.",
+    );
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(0);
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(2);
+
+    actor.stop();
+  });
 });

@@ -30,7 +30,7 @@ const MODEL_TARGETS: ModelTarget[] = [
 /**
  * downloads a file from an array of fallback urls
  */
-async function downloadWithFallback(target: ModelTarget, destinationDir: string): Promise<void> {
+const downloadWithFallback = async (target: ModelTarget, destinationDir: string): Promise<void> => {
   const filePath = path.join(destinationDir, target.filename);
   if (existsSync(filePath)) {
     console.log(`[WakeWord] ${target.filename} already exists, skipping.`);
@@ -69,9 +69,9 @@ async function downloadWithFallback(target: ModelTarget, destinationDir: string)
   throw new Error(
     `Failed to download ${target.filename} from all mirrors. Last error: ${lastError?.message}`,
   );
-}
+};
 
-async function main(): Promise<void> {
+const main = async (): Promise<void> => {
   console.log(`[WakeWord] Preparing models directory: ${MODELS_DIR}`);
   await mkdir(MODELS_DIR, { recursive: true });
 
@@ -80,7 +80,7 @@ async function main(): Promise<void> {
   }
 
   console.log('[WakeWord] All wake word ONNX models are in place.');
-}
+};
 
 main().catch((err) => {
   console.error('[WakeWord] Fatal error downloading models:', err);

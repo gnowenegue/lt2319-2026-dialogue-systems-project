@@ -7,7 +7,7 @@ import type { SearchRecipeOutput } from '../types';
 /**
  * creates a fresh mock recipe with optional overrides for testing
  */
-export function createMockRecipe(overrides: Partial<NormalizedRecipe> = {}): NormalizedRecipe {
+export const createMockRecipe = (overrides: Partial<NormalizedRecipe> = {}): NormalizedRecipe => {
   return {
     id: '52771',
     title: 'Spicy Arrabiata Penne',
@@ -43,12 +43,12 @@ export function createMockRecipe(overrides: Partial<NormalizedRecipe> = {}): Nor
     ],
     ...overrides,
   };
-}
+};
 
 /**
  * factory creating an initialized test cooking actor with mock dependencies
  */
-export function createTestCookingActor(recipe: NormalizedRecipe = createMockRecipe()) {
+export const createTestCookingActor = (recipe: NormalizedRecipe = createMockRecipe()) => {
   const machine = cookingMachine.provide({
     actors: {
       fetchRecipeActor: fromPromise(
@@ -61,4 +61,4 @@ export function createTestCookingActor(recipe: NormalizedRecipe = createMockReci
     },
   });
   return createActor(machine).start();
-}
+};

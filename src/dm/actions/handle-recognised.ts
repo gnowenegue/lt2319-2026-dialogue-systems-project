@@ -5,7 +5,7 @@ import type { CookingContext, CookingEvent } from '../types';
 /**
  * translates recognized user speech into semantic dialogue acts and sends them to the machine
  */
-export async function handleRecognisedAction({
+export const handleRecognisedAction = async ({
   context,
   self,
   event,
@@ -16,7 +16,7 @@ export async function handleRecognisedAction({
     getSnapshot?: () => { can?: (event: CookingEvent) => boolean; value?: unknown };
   };
   event: CookingEvent;
-}): Promise<void> {
+}): Promise<void> => {
   if (event.type !== 'RECOGNISED') return;
   const utterance = event.value[0]?.utterance?.trim();
   if (!utterance) return;
@@ -162,4 +162,4 @@ export async function handleRecognisedAction({
   }
 
   self.send(eventToSend);
-}
+};
