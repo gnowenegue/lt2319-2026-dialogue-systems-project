@@ -6,8 +6,6 @@ export const ROLES = {
   System: 'system',
 } as const;
 
-export const NO_INPUT_THRESHOLD = 3 as const;
-
 /**
  * maximum word count threshold for spoken dialogue utterances.
  * keeps responses concise (<25 words) to avoid cognitive overload while cooking.
@@ -19,8 +17,3 @@ export const MAX_SPOKEN_WORDS = 25 as const;
  * for dialogue continuity and elliptical / anaphora resolution.
  */
 export const DEFAULT_CONVERSATION_WINDOW = 3 as const;
-
-/**
- * duration in milliseconds for the hands-free open-mic follow-up window after speech.
- */
-export const OPEN_MIC_FOLLOW_UP_MS = 8000 as const;

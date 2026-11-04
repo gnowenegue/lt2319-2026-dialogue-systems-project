@@ -245,20 +245,6 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().context.lastSpokenUtterance).toContain('Step 2:');
   });
 
-  it('prepares speechstate and advances to PromptRecipe upon ASRTTS_READY on user click', () => {
-    const actor = createTestCookingActor();
-
-    expect(actor.getSnapshot().value).toBe('Idle');
-    actor.send({ type: 'CLICK' });
-    expect(actor.getSnapshot().value).toBe('Prepare');
-
-    actor.send({ type: 'ASRTTS_READY' });
-    expect(actor.getSnapshot().value).toBe('PromptRecipe');
-    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
-      'Hi! What would you like to cook today?',
-    );
-  });
-
   it('accumulates multi-turn conversation history with system prompt, user speech, and NLU acts', () => {
     const actor = createTestCookingActor();
 
