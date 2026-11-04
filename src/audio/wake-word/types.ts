@@ -3,7 +3,7 @@
  */
 export interface WakeWordConfig {
   /**
-   * base filename of the wake word classifier without `.onnx` extension (defaults to `'hey_jarvis_v0.1'`)
+   * base filename of the wake word classifier without `.onnx` extension (defaults to `'hey_chef'`)
    */
   modelName?: string;
   /**
@@ -25,7 +25,7 @@ export interface WakeWordConfig {
  */
 export interface WakeWordDetection {
   /**
-   * name of the classifier model that triggered (e.g. `'hey_jarvis_v0.1'`)
+   * name of the classifier model that triggered (e.g. `'hey_chef'`)
    */
   modelName: string;
   /**

@@ -1,7 +1,7 @@
 /**
  * default wake word classifier model name
  */
-export const DEFAULT_WAKE_WORD_MODEL = 'hey_jarvis_v0.1' as const;
+export const DEFAULT_WAKE_WORD_MODEL = 'hey_chef' as const;
 
 /**
  * default static asset directory for wake word ONNX files

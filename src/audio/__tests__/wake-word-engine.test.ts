@@ -4,7 +4,7 @@ import { WakeWordEngine } from '../wake-word/wake-word-engine';
 describe('WakeWordEngine', () => {
   it('initializes with default configuration values', () => {
     const engine = new WakeWordEngine();
-    expect(engine.modelName).toBe('hey_jarvis_v0.1');
+    expect(engine.modelName).toBe('hey_chef');
     expect(engine.modelsPath).toBe('/models/wake-word');
     expect(engine.threshold).toBe(0.35);
     expect(engine.cooldownMs).toBe(1500);
@@ -35,17 +35,17 @@ describe('WakeWordEngine', () => {
     ).handleDetection.bind(engine);
 
     // first trigger passes
-    handleDetection(0.9, 'hey_jarvis_v0.1');
+    handleDetection(0.9, 'hey_chef');
     expect(triggerSpy).toHaveBeenCalledTimes(1);
     expect(triggerSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelName: 'hey_jarvis_v0.1',
+        modelName: 'hey_chef',
         score: 0.9,
       }),
     );
 
     // immediate second trigger is dropped due to cooldown
-    handleDetection(0.95, 'hey_jarvis_v0.1');
+    handleDetection(0.95, 'hey_chef');
     expect(triggerSpy).toHaveBeenCalledTimes(1);
   });
 

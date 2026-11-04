@@ -24,19 +24,7 @@ const MODEL_TARGETS: ModelTarget[] = [
       'https://huggingface.co/davidscripka/openwakeword/resolve/main/embedding_model.onnx',
     ],
   },
-  {
-    filename: 'hey_jarvis_v0.1.onnx',
-    urls: [
-      'https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/hey_jarvis_v0.1.onnx',
-      'https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/hey_jarvis.onnx',
-      'https://raw.githubusercontent.com/dscripka/openWakeWord/main/openwakeword/resources/models/hey_jarvis_v0.1.onnx',
-      'https://raw.githubusercontent.com/dscripka/openWakeWord/main/openwakeword/resources/models/hey_jarvis.onnx',
-      'https://huggingface.co/davidscripka/openwakeword/resolve/main/openwakeword/resources/models/hey_jarvis_v0.1.onnx',
-      'https://huggingface.co/davidscripka/openwakeword/resolve/main/hey_jarvis_v0.1.onnx',
-      'https://huggingface.co/davidscripka/openwakeword/raw/main/hey_jarvis_v0.1.onnx',
-      'https://huggingface.co/datasets/davidscripka/openwakeword_models/resolve/main/hey_jarvis_v0.1.onnx',
-    ],
-  },
+  // Note: hey_chef.onnx is a custom model placed directly in public/models/wake-word/
 ];
 
 /**
@@ -55,7 +43,7 @@ async function downloadWithFallback(target: ModelTarget, destinationDir: string)
       console.log(`[WakeWord] Downloading ${target.filename} from ${url}...`);
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Cookmate/1.0 (academic course project; student@gu.se)',
+          'User-Agent': 'CookMate/1.0 (academic course project; student@gu.se)',
         },
       });
 
