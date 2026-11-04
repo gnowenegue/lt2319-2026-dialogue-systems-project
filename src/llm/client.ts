@@ -11,21 +11,21 @@ import {
   LLM_MODEL,
 } from './constants';
 
-// configure Groq cloud endpoint if valid API key is present, otherwise fallback to local Ollama
-const rawKey = getEnv('VITE_GROQ_API_KEY');
-const groqApiKey = rawKey && rawKey !== 'your_groq_api_key_here' ? rawKey : undefined;
+const groqApiKey = getEnv('VITE_GROQ_API_KEY');
 
 // route browser requests through dev proxy to bypass CORS restrictions while letting Node/CLI scripts call directly
-const resolveGroqBaseUrl = (): string => {
+const resolveGroqBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return new URL(GROQ_PROXY_PATH, window.location.origin).toString();
   }
   return DEFAULT_GROQ_BASE_URL;
 };
 
+// configure Groq cloud endpoint if valid API key is present, otherwise fallback to local Ollama
 const activeBaseUrl = groqApiKey
   ? resolveGroqBaseUrl()
   : getEnv('VITE_OLLAMA_URL', DEFAULT_OLLAMA_BASE_URL);
+
 const activeApiKey = groqApiKey || DEFAULT_OLLAMA_API_KEY;
 
 /**

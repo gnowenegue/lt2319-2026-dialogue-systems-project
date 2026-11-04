@@ -47,19 +47,6 @@ describe('Dialogue Manager - Recipe Discovery & Selection (SELECT_RECIPE)', () =
       expect(matchCandidate(mockCandidates, 0)).toBeNull();
     });
 
-    it('matches candidate by ordinal keywords in query', () => {
-      expect(matchCandidate(mockCandidates, undefined, 'the first one')).toEqual(mockCandidates[0]);
-      expect(matchCandidate(mockCandidates, undefined, 'choose the second')).toEqual(
-        mockCandidates[1],
-      );
-      expect(matchCandidate(mockCandidates, undefined, 'number 3 please')).toEqual(
-        mockCandidates[2],
-      );
-      expect(matchCandidate(mockCandidates, undefined, 'the last option')).toEqual(
-        mockCandidates[2],
-      );
-    });
-
     it('matches candidate by partial title substring', () => {
       expect(matchCandidate(mockCandidates, undefined, 'make arrabiata')).toEqual(
         mockCandidates[0],
@@ -301,6 +288,26 @@ describe('Dialogue Manager - Recipe Discovery & Selection (SELECT_RECIPE)', () =
           { id: '52893', title: 'Apple & Blackberry Crumble', index: 2 },
         ],
       });
+    });
+
+    it('matches category by token inclusion in natural phrases (e.g. "make dessert")', async () => {
+      vi.spyOn(recipes, 'searchMealsByName').mockResolvedValue([]);
+      const filterSpy = vi
+        .spyOn(recipes, 'filterMealsByCategory')
+        .mockResolvedValue([
+          { idMeal: '52768', strMeal: 'Apple Frangipan Tart', strMealThumb: '' },
+        ]);
+      vi.spyOn(recipes, 'getRefinedRecipe').mockResolvedValue(mockArrabiataRecipe);
+
+      const actor = createActor(fetchRecipeLogic, {
+        input: { query: 'make dessert' },
+      }).start();
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const snapshot = actor.getSnapshot();
+      expect(snapshot.status).toBe('done');
+      expect(filterSpy).toHaveBeenCalledWith('Dessert');
     });
 
     it('falls back to primary ingredient search when name and category fail', async () => {

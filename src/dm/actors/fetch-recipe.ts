@@ -61,14 +61,17 @@ export const fetchRecipeLogic = fromPromise(
       return resolveMealResults(meals);
     }
 
-    // attempt category filter fallback (e.g. "dessert", "some dessert", "seafood")
+    // attempt category filter fallback (e.g. "dessert", "make dessert", "seafood")
     const lowerCleaned = cleanedQuery.toLowerCase();
-    const matchedCategory = THEMEALDB_CATEGORIES.find(
-      (cat) =>
-        cat.toLowerCase() === lowerCleaned ||
-        lowerCleaned.startsWith(cat.toLowerCase()) ||
-        cat.toLowerCase().startsWith(lowerCleaned),
-    );
+    const queryTokens = lowerCleaned.split(/[^a-z0-9]+/i).filter(Boolean);
+    const matchedCategory = THEMEALDB_CATEGORIES.find((cat) => {
+      const catLower = cat.toLowerCase();
+      return (
+        catLower === lowerCleaned ||
+        queryTokens.includes(catLower) ||
+        queryTokens.some((token) => token === `${catLower}s` || token.startsWith(catLower))
+      );
+    });
 
     if (matchedCategory) {
       const categoryMeals = await filterMealsByCategory(matchedCategory);
