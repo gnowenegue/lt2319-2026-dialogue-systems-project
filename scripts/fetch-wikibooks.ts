@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { Command } from 'commander';
 
 const WIKIMEDIA_API_URL = 'https://en.wikibooks.org/w/api.php';
-const USER_AGENT = 'Cookmate/1.0 (academic course project; student@gu.se)';
+const USER_AGENT = 'CookMate/1.0 (academic course project; student@gu.se)';
 
 const program = new Command();
 program

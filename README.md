@@ -1,4 +1,4 @@
-# Cookmate
+# CookMate
 
 > A stateful spoken dialogue copilot combining deterministic state management, structured recipe APIs, and retrieval-augmented language models to assist users hands-free during procedural cooking tasks.
 
@@ -8,7 +8,7 @@ Built for the **LT2319 Dialogue Systems** course project at the University of Go
 
 ## Architecture Overview
 
-Cookmate separates conversation state, recipe facts, and general culinary knowledge:
+CookMate separates conversation state, recipe facts, and general culinary knowledge:
 
 - **Dialogue Management & State**: [SpeechState](https://github.com/speechstate/speechstate) + [XState v5](https://stately.ai/docs/xstate) for deterministic session state, step navigation, and kitchen timers.
 - **Natural Language Understanding**: Structured LLM semantic extraction mapping speech utterances to strict dialogue acts.

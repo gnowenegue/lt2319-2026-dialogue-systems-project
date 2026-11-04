@@ -1,6 +1,6 @@
 # Dialogue Acts & Semantic Entities Reference
 
-This document defines the complete taxonomy of **Dialogue Acts** and **Semantic Entities** used by Cookmate. It serves as the formal specification for semantic parsing, intent extraction, state routing, and conversational policy.
+This document defines the complete taxonomy of **Dialogue Acts** and **Semantic Entities** used by CookMate. It serves as the formal specification for semantic parsing, intent extraction, state routing, and conversational policy.
 
 ---
 

@@ -1,4 +1,4 @@
-# Cookmate — Project Roadmap
+# CookMate — Project Roadmap
 
 ## Architecture Overview
 

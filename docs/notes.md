@@ -1,6 +1,6 @@
 # Architectural & Design Notes
 
-This document records key design decisions, tradeoffs, and domain-specific considerations for Cookmate.
+This document records key design decisions, tradeoffs, and domain-specific considerations for CookMate.
 
 ---
 
