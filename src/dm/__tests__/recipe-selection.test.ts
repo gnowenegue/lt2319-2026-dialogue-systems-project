@@ -10,6 +10,7 @@ import { fetchRecipeLogic } from '../actors/fetch-recipe';
 import { cookingMachine } from '../cooking-machine';
 import { formatCandidateUtterance, matchCandidate } from '../helpers';
 import type { CookingContext, CookingEvent, RecipeCandidate, SearchRecipeOutput } from '../types';
+import { createMockRecipe } from './test-helpers';
 
 const mockCandidates: readonly RecipeCandidate[] = [
   { id: 'c-1', title: 'Spicy Penne Arrabiata', index: 1 },
@@ -17,19 +18,19 @@ const mockCandidates: readonly RecipeCandidate[] = [
   { id: 'c-3', title: 'Spaghetti Carbonara', index: 3 },
 ];
 
-const mockArrabiataRecipe: NormalizedRecipe = {
+const mockArrabiataRecipe = createMockRecipe({
   id: 'c-1',
   title: 'Spicy Penne Arrabiata',
   ingredients: [{ name: 'Penne', measure: '1 lb', text: '1 pound penne' }],
   steps: [{ stepNumber: 1, instruction: 'Boil pasta in salted water.' }],
-};
+});
 
-const mockAlfredoRecipe: NormalizedRecipe = {
+const mockAlfredoRecipe = createMockRecipe({
   id: 'c-2',
   title: 'Fettuccine Alfredo',
   ingredients: [{ name: 'Fettuccine', measure: '1 lb', text: '1 pound fettuccine' }],
   steps: [{ stepNumber: 1, instruction: 'Melt butter with heavy cream.' }],
-};
+});
 
 describe('Dialogue Manager - Recipe Discovery & Selection (SELECT_RECIPE)', () => {
   describe('helpers', () => {

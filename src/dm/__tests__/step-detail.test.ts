@@ -4,13 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { createActor, fromPromise, fromTransition } from 'xstate';
 
 import { getLlmUsageHistory } from '../../llm';
-import type { NormalizedRecipe } from '../../recipes/types';
 import { queryStepDetail } from '../actors/query-step-detail';
 import { STEP_DETAIL_TEMPERATURE } from '../constants';
 import { cookingMachine } from '../cooking-machine';
 import type { QueryStepDetailInput, SearchRecipeOutput } from '../types';
+import { createMockRecipe } from './test-helpers';
 
-const mockArrabiataRecipe: NormalizedRecipe = {
+const mockArrabiataRecipe = createMockRecipe({
   id: 'mock-1',
   title: 'Spicy Penne Arrabiata',
   ingredients: [
@@ -29,7 +29,7 @@ const mockArrabiataRecipe: NormalizedRecipe = {
       estimatedMinutes: 5,
     },
   ],
-};
+});
 
 describe('Dialogue Manager - QUERY_STEP_DETAIL Flow', () => {
   it('answers step detail query during active cooking and resumes WaitingForStepCommand', async () => {
