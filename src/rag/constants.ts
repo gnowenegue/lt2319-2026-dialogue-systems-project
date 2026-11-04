@@ -32,3 +32,8 @@ export const DEFAULT_QDRANT_PORT = 6333 as const;
  * default local host URL for Qdrant service
  */
 export const DEFAULT_QDRANT_URL = 'http://localhost' as const;
+
+/**
+ * sampling temperature for LLM RAG spoken advice synthesis
+ */
+export const RAG_TEMPERATURE = 0.2 as const;

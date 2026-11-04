@@ -2,6 +2,8 @@ import { env, type FeatureExtractionPipeline, pipeline } from '@huggingface/tran
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 import { getEnv } from '../configs';
+import { ACTIVE_LLM_MODEL, openai, recordLlmUsage } from '../llm';
+import prompts from '../prompts';
 import {
   CULINARY_COLLECTION,
   DEFAULT_QDRANT_PORT,
@@ -9,8 +11,9 @@ import {
   DEFAULT_SCORE_THRESHOLD,
   DEFAULT_SEARCH_LIMIT,
   EMBEDDING_MODEL,
+  RAG_TEMPERATURE,
 } from './constants';
-import type { RagCategory, RagQueryOptions } from './types';
+import type { RagCategory, RagQueryOptions, SynthesizeRagOptions } from './types';
 
 // configure offline model directory for `rag-cli` vs browser
 if (globalThis.process?.cwd) {
@@ -18,6 +21,7 @@ if (globalThis.process?.cwd) {
 } else {
   env.localModelPath = '/models';
 }
+env.allowLocalModels = true;
 env.allowRemoteModels = false;
 
 const qdrantUrl = getEnv('VITE_QDRANT_URL', DEFAULT_QDRANT_URL);
@@ -119,4 +123,76 @@ const queryCulinaryKnowledge = async (
     : `No matching culinary advice found for "${trimmed}".`;
 };
 
-export { buildCategoryFilter, embedQuery, preloadModel, queryCulinaryKnowledge };
+/**
+ * synthesizes concise, spoken culinary advice grounded in retrieved Qdrant knowledge
+ */
+const synthesizeCulinaryAdvice = async (
+  query: string,
+  category?: RagCategory,
+  options?: SynthesizeRagOptions,
+): Promise<string> => {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return 'Please provide a culinary question.';
+  }
+
+  let contextText = '';
+  try {
+    const searchResult = await queryCulinaryKnowledge(trimmed, {
+      category,
+      limit: options?.limit ?? DEFAULT_SEARCH_LIMIT,
+    });
+    if (!searchResult.startsWith('No matching culinary advice found')) {
+      contextText = searchResult;
+    }
+  } catch (error) {
+    // fail gracefully when Qdrant is offline or unreachable
+    console.warn('[RAG] Retrieval fallback:', error);
+  }
+
+  const client = options?.client ?? openai;
+  const model = options?.model ?? ACTIVE_LLM_MODEL;
+
+  const historyMessages =
+    options?.recentMessages?.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    })) ?? [];
+
+  const contextSections = [
+    options?.stepContext ? `Current Step: ${options.stepContext}` : '',
+    contextText ? `Context:\n${contextText}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const completion = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: 'system', content: prompts.systemRAG },
+      ...historyMessages,
+      {
+        role: 'user',
+        content: contextSections
+          ? `${contextSections}\n\nQuestion: ${trimmed}`
+          : `Question: ${trimmed}`,
+      },
+    ],
+    temperature: RAG_TEMPERATURE,
+  });
+
+  recordLlmUsage('rag-synthesis', model, completion.usage);
+
+  return (
+    completion.choices[0]?.message?.content?.trim() ||
+    "I don't have advice on that in my culinary guides."
+  );
+};
+
+export {
+  buildCategoryFilter,
+  embedQuery,
+  preloadModel,
+  queryCulinaryKnowledge,
+  synthesizeCulinaryAdvice,
+};

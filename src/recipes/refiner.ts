@@ -1,4 +1,4 @@
-import { ACTIVE_REFINER_MODEL, openai } from '../llm';
+import { ACTIVE_REFINER_MODEL, openai, recordLlmUsage } from '../llm';
 import prompts from '../prompts';
 import { REFINER_TEMPERATURE } from './constants';
 import { calculateTotalMinutes, normalizeMealDBRecipe } from './normalizer';
@@ -70,6 +70,8 @@ export async function refineRecipeWithLLM(
       response_format: { type: 'json_object' },
       temperature: REFINER_TEMPERATURE,
     });
+
+    recordLlmUsage('recipe-refinement', model, completion.usage);
 
     const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
     const ingredients = parseRefinedIngredients(parsed.ingredients);

@@ -13,32 +13,35 @@ export default {
    * system prompt for Groq/LLM semantic extraction.
    * dynamically lists all valid dialogue acts derived from `DIALOGUE_ACTS`.
    */
-  semanticParser: `Extract dialogue act and entities from cooking speech. Output JSON matching the schema.
+  semanticParser: `Extract dialogue act and entities from cooking speech as JSON.
 
 Acts: ${DIALOGUE_ACTS.join(', ')}
 
-Schema:
-{
-  "act": "<one of Acts>",
-  "entities": {
-    "ingredient": "string (food name, e.g. 'butter')",
-    "stepNumber": "number (positive integer e.g. 3, or -1 for 'last'/'final' step)",
-    "query": "string (recipe search term or technique query)",
-    "durationSeconds": "number (total duration in seconds, e.g. 5 minutes = 300)",
-    "timerLabel": "string (timer name if mentioned, e.g. 'pasta')"
-  }
-}
+Schema: {"act": "<Act>", "entities": {"ingredient": string, "stepNumber": number, "query": string, "durationSeconds": number, "timerLabel": string}}
 
 Rules:
-- Omit entities or unused entity keys if not mentioned.
-- Only select acts from the Acts list; if unclear, use "UNKNOWN".
-- Conversational agreements, confirmations, or readiness (e.g. agreeing, confirming possession of the current batch of ingredients like "got those" or "have them", or indicating readiness) map to AFFIRM.
-- Disagreements or rejections like "no", "nope", "nevermind" map to DENY.
-- Advancing cues like "next", "done", "finished", "go ahead" map to NEXT_STEP.
-- Skipping ingredient prep, having all ingredients, or wanting to start cooking immediately (e.g. "I have everything", "I have all of them", "skip prep", "skip ingredients", "start cooking", "let's cook", "ready to cook") maps to SKIP_PREP. Stating possession of all ingredients or wanting to start cooking takes priority over AFFIRM.
-- For GOTO_STEP, extract stepNumber as an integer (e.g. "step 3" -> 3, "first step" -> 1). Use -1 for "last step" or "final step".
-- Never infer or assume entities not explicitly spoken.
-- Convert timer durations to integer seconds (never minutes or text).`,
+- Return exactly ONE JSON object for the target utterance only.
+- Omit unused entity keys. Return UNKNOWN if intent is unclear.
+- SKIP_PREP: User has all ingredients, wants to skip prep, or start cooking immediately. Overrides AFFIRM.
+- GOTO_STEP: stepNumber must be integer (e.g. "step two" -> 2). Use -1 for "last"/"final", 1 for "first".
+- INQUIRE_SUBSTITUTION: Swapping, replacing, missing ingredients, or clarifying ingredient types/varieties (e.g. "I don't have butter", "replace milk", "what kind of oil?", "what oil?"). Put food in "ingredient", question in "query".
+- INQUIRE_TECHNIQUE: Culinary definitions or how-to checks (e.g. "what does sauté mean?"). Put question in "query".
+- QUERY_INGREDIENT vs QUERY_STEP_DETAIL: QUERY_INGREDIENT is strictly for ingredient quantities, presence, or full list ("how much salt?", "do we need butter?", "what ingredients are in this?"). QUERY_STEP_DETAIL is for step actions ("what heat?").
+- SEARCH_RECIPE: Naming a dish, meal, or ingredient to find or cook (e.g. "pancake", "banana pancake", "pasta", "find chicken curry"). Put food or meal name in "query".
+- SELECT_RECIPE: Choosing a candidate ONLY when presented with numbered options (e.g. "the second one", "choose Alfredo", "number 1"). Put candidate number (1, 2, 3) in "stepNumber" or name in "query".
+- SET_TIMER: Convert duration to total integer seconds (e.g. 5 min -> 300).
+
+Examples:
+User: "Actually, I have everything. Let's cook" -> {"act": "SKIP_PREP"}
+User: "Banana pancake" -> {"act": "SEARCH_RECIPE", "entities": {"query": "Banana pancake"}}
+User: "Got those" -> {"act": "AFFIRM"}
+User: "Can we go to the last step?" -> {"act": "GOTO_STEP", "entities": {"stepNumber": -1}}
+User: "Let's make the second one" -> {"act": "SELECT_RECIPE", "entities": {"stepNumber": 2}}
+User: "Can I use butter instead of oil?" -> {"act": "INQUIRE_SUBSTITUTION", "entities": {"ingredient": "butter", "query": "Can I use butter instead of oil?"}}
+User: "What kind of oil?" -> {"act": "INQUIRE_SUBSTITUTION", "entities": {"ingredient": "oil", "query": "What kind of oil should I use?"}}
+User: "I don't have vanilla" -> {"act": "INQUIRE_SUBSTITUTION", "entities": {"ingredient": "vanilla", "query": "What can I substitute for vanilla?"}}
+User: "What does braise mean?" -> {"act": "INQUIRE_TECHNIQUE", "entities": {"query": "What does braise mean?"}}
+User: "Set a timer for 5 minutes" -> {"act": "SET_TIMER", "entities": {"durationSeconds": 300, "timerLabel": "cooking"}}`,
 
   /**
    * default conversational system prompt for general cooking assistance.
@@ -48,7 +51,12 @@ Rules:
   /**
    * spoken RAG synthesis prompt for answering culinary knowledge questions.
    */
-  systemRAG: `Answer the cook's question using only the provided context. ${SPOKEN_RESPONSE_RULES}`,
+  systemRAG: `Answer the cook's question using only the provided context. For substitutions, if none is found, state that there is no substitute listed for that ingredient. ${SPOKEN_RESPONSE_RULES}`,
+
+  /**
+   * spoken synthesis prompt for answering factual questions about the active cooking step.
+   */
+  systemStepDetail: `Answer the cook's question about the current cooking step using only the provided step instruction. If not mentioned in the step, say that it's not mentioned. ${SPOKEN_RESPONSE_RULES}`,
 
   /**
    * system prompt for Groq/LLM recipe refinement and voice optimization.
@@ -89,6 +97,10 @@ Rules:
   promptRecipe: 'Hi! What would you like to cook today?',
   greeting: 'Hi! Ready when you are.',
   help: 'You can ask to search for a recipe, navigate steps with next or repeat, set timers, or ask about ingredients.',
+  selectRecipeHelp:
+    'Please choose a recipe by saying its number or name, or ask to search for something else.',
+  selectRecipeReprompt:
+    'Sorry, I did not recognize that option. Please choose recipe 1, 2, or 3, or say the recipe name.',
   cannotHear: "Sorry, I didn't catch that. Could you say that again?",
   noInput: [
     "Sorry, I didn't catch that. Could you say that again?",

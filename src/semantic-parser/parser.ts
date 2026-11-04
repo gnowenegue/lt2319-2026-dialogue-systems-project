@@ -1,56 +1,30 @@
-import { ACTIVE_LLM_MODEL, openai } from '../llm';
+import { ACTIVE_LLM_MODEL, openai, recordLlmUsage } from '../llm';
 import prompts from '../prompts';
 import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
 import type { DialogueAct, Entities, ParserOptions, SemanticParseResult } from './types';
 
-// regex patterns detecting prep-skip cues and relative step navigation
-const SKIP_PREP_REGEX =
-  /\b(have everything|got everything|have all( of)?( them| the ingredients)?|start cooking|let's cook|skip prep|skip ingredients|ready to cook)\b/i;
-const LAST_STEP_REGEX = /\b(last|final|end)\s*(step)?\b/i;
-const FIRST_STEP_REGEX = /\bfirst\s*(step)?\b/i;
-const STEP_NUMBER_REGEX = /\bstep\s*(\d+)\b/i;
-
 /**
- * normalizes semantic parse results with deterministic fallback rules for prep-skipping and relative step navigation
+ * ensures fallback entity properties are populated for structured dialogue acts
  */
 export const normalizeParseResult = (
   rawAct: DialogueAct,
   rawEntities: Entities | undefined,
   utterance: string,
 ): { act: DialogueAct; entities?: Entities } => {
-  let act = rawAct;
   let entities = rawEntities;
 
-  // normalize prep-skipping cues misclassified as `AFFIRM` or `UNKNOWN`
-  if ((act === 'AFFIRM' || act === 'UNKNOWN') && SKIP_PREP_REGEX.test(utterance)) {
-    act = 'SKIP_PREP';
-  }
-
-  // recover step navigation cues misclassified as `UNKNOWN`
+  // populate query with full utterance if model omitted it for question or search acts
   if (
-    act === 'UNKNOWN' &&
-    /\b(go to|jump to|take me to|navigate to)\s*(the\s*)?(last|final|end|first|step\s*\d+)/i.test(
-      utterance,
-    )
+    (rawAct === 'INQUIRE_SUBSTITUTION' ||
+      rawAct === 'INQUIRE_TECHNIQUE' ||
+      rawAct === 'SEARCH_RECIPE' ||
+      rawAct === 'QUERY_STEP_DETAIL') &&
+    !entities?.query
   ) {
-    act = 'GOTO_STEP';
+    entities = { ...entities, query: utterance };
   }
 
-  // resolve missing step numbers for `GOTO_STEP` navigation
-  if (act === 'GOTO_STEP' && entities?.stepNumber === undefined) {
-    if (LAST_STEP_REGEX.test(utterance)) {
-      entities = { ...entities, stepNumber: -1 };
-    } else if (FIRST_STEP_REGEX.test(utterance)) {
-      entities = { ...entities, stepNumber: 1 };
-    } else {
-      const match = utterance.match(STEP_NUMBER_REGEX);
-      if (match?.[1]) {
-        entities = { ...entities, stepNumber: Number(match[1]) };
-      }
-    }
-  }
-
-  return { act, entities };
+  return { act: rawAct, entities };
 };
 
 /**
@@ -76,22 +50,28 @@ export const parseUtterance = async (
   const model = options.model ?? ACTIVE_LLM_MODEL;
 
   try {
-    const historyMessages =
-      options.recentMessages?.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })) ?? [];
+    // format recent conversation history as context for the target utterance
+    const contextPrefix = options.recentMessages?.length
+      ? `Recent conversation context:\n${options.recentMessages
+          .map((msg) => `${msg.role === 'assistant' ? 'Assistant' : 'User'}: ${msg.content}`)
+          .join('\n')}\n\n`
+      : '';
+
+    const userContent = contextPrefix
+      ? `${contextPrefix}Target utterance to parse:\n"${trimmed}"`
+      : trimmed;
 
     const completion = await client.chat.completions.create({
       model,
       messages: [
         { role: 'system', content: prompts.semanticParser },
-        ...historyMessages,
-        { role: 'user', content: trimmed },
+        { role: 'user', content: userContent },
       ],
       response_format: { type: 'json_object' },
       temperature: SEMANTIC_PARSER_TEMPERATURE,
     });
+
+    recordLlmUsage('semantic-parser', model, completion.usage);
 
     const content = completion.choices[0]?.message?.content ?? '{}';
     const jsonMatch = content.match(/\{[\s\S]*\}/);
