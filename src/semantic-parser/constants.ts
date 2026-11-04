@@ -29,3 +29,35 @@ export const DIALOGUE_ACTS = [
   'HELP',
   'UNKNOWN',
 ] as const;
+
+/**
+ * expected primary dialogue acts per dialogue state phase to guide NLU disambiguation
+ */
+export const STATE_EXPECTED_ACTS: Record<string, readonly (typeof DIALOGUE_ACTS)[number][]> = {
+  PromptRecipe: ['SEARCH_RECIPE', 'GREETING', 'HELP'],
+  SelectingRecipe: ['SELECT_RECIPE', 'SEARCH_RECIPE', 'DENY', 'HELP'],
+  ConfirmRecipe: ['AFFIRM', 'DENY', 'INQUIRE_SUBSTITUTION', 'QUERY_INGREDIENT'],
+  WaitingForPrepConfirmation: [
+    'AFFIRM',
+    'DENY',
+    'SKIP_PREP',
+    'INQUIRE_SUBSTITUTION',
+    'QUERY_INGREDIENT',
+  ],
+  WaitingForStepCommand: [
+    'NEXT_STEP',
+    'AFFIRM',
+    'DENY',
+    'PREVIOUS_STEP',
+    'REPEAT_STEP',
+    'GOTO_STEP',
+    'QUERY_STEP_DETAIL',
+    'QUERY_INGREDIENT',
+    'INQUIRE_SUBSTITUTION',
+    'INQUIRE_TECHNIQUE',
+    'SET_TIMER',
+    'CHECK_TIMER',
+    'CANCEL_TIMER',
+    'HELP',
+  ],
+};

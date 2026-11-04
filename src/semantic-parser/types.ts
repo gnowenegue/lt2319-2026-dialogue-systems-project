@@ -8,6 +8,7 @@ export interface ParserOptions {
   client?: OpenAI;
   model?: string;
   recentMessages?: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
+  currentState?: string;
 }
 
 /**

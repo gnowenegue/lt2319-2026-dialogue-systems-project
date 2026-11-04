@@ -1,6 +1,6 @@
 import { ACTIVE_LLM_MODEL, openai, recordLlmUsage } from '../llm';
 import prompts from '../prompts';
-import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE } from './constants';
+import { DIALOGUE_ACTS, SEMANTIC_PARSER_TEMPERATURE, STATE_EXPECTED_ACTS } from './constants';
 import type { DialogueAct, Entities, ParserOptions, SemanticParseResult } from './types';
 
 /**
@@ -57,9 +57,17 @@ export const parseUtterance = async (
           .join('\n')}\n\n`
       : '';
 
-    const userContent = contextPrefix
-      ? `${contextPrefix}Target utterance to parse:\n"${trimmed}"`
-      : trimmed;
+    // condition parsing with active dialogue state phase hint when available
+    const expectedActs = options.currentState
+      ? STATE_EXPECTED_ACTS[options.currentState]
+      : undefined;
+    const stateHint = options.currentState
+      ? `Active dialogue phase: ${options.currentState}${
+          expectedActs ? ` (likely intents: ${expectedActs.join(', ')})` : ''
+        }\n\n`
+      : '';
+
+    const userContent = `${contextPrefix}${stateHint}Target utterance to parse:\n"${trimmed}"`;
 
     const completion = await client.chat.completions.create({
       model,

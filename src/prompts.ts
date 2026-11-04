@@ -22,11 +22,12 @@ Schema: {"act": "<Act>", "entities": {"ingredient": string, "stepNumber": number
 Rules:
 - Return exactly ONE JSON object for the target utterance only.
 - Omit unused entity keys. Return UNKNOWN if intent is unclear.
+- Active dialogue phase: When provided, use the phase to disambiguate short utterances, ordinals, and numbers (e.g. in SelectingRecipe, "two" or "the second one" means SELECT_RECIPE; in WaitingForStepCommand, "two" or "step two" means GOTO_STEP). Global acts (timers, help, greetings) remain accessible in any phase.
 - SKIP_PREP: User has all ingredients, wants to skip prep, or start cooking immediately. Overrides AFFIRM.
 - GOTO_STEP: stepNumber must be integer (e.g. "step two" -> 2). Use -1 for "last"/"final", 1 for "first".
 - INQUIRE_SUBSTITUTION: Swapping, replacing, missing ingredients, or clarifying ingredient types/varieties (e.g. "I don't have butter", "replace milk", "what kind of oil?", "what oil?"). Put food in "ingredient", question in "query".
 - INQUIRE_TECHNIQUE: Culinary definitions or how-to checks (e.g. "what does sauté mean?"). Put question in "query".
-- QUERY_INGREDIENT vs QUERY_STEP_DETAIL: QUERY_INGREDIENT is strictly for ingredient quantities, presence, or full list ("how much salt?", "do we need butter?", "what ingredients are in this?"). QUERY_STEP_DETAIL is for step actions ("what heat?").
+- QUERY_INGREDIENT vs INQUIRE_SUBSTITUTION / QUERY_STEP_DETAIL: QUERY_INGREDIENT is strictly for ingredient quantities, presence, or full list ("how much salt?", "do we need butter?", "what ingredients are in this?"). Questions asking what kind/type/variety to use or about swapping/substituting are INQUIRE_SUBSTITUTION ("what kind of oil?", "which flour?"). QUERY_STEP_DETAIL is for step actions ("what heat?").
 - SEARCH_RECIPE: Naming a dish, meal, or ingredient to find or cook (e.g. "pancake", "banana pancake", "pasta", "find chicken curry"). Put food or meal name in "query".
 - SELECT_RECIPE: Choosing a candidate ONLY when presented with numbered options (e.g. "the second one", "choose Alfredo", "number 1"). Put candidate number (1, 2, 3) in "stepNumber" or name in "query".
 - SET_TIMER: Convert duration to total integer seconds (e.g. 5 min -> 300).
@@ -37,6 +38,7 @@ User: "Banana pancake" -> {"act": "SEARCH_RECIPE", "entities": {"query": "Banana
 User: "Got those" -> {"act": "AFFIRM"}
 User: "Can we go to the last step?" -> {"act": "GOTO_STEP", "entities": {"stepNumber": -1}}
 User: "Let's make the second one" -> {"act": "SELECT_RECIPE", "entities": {"stepNumber": 2}}
+User: "How much olive oil do we need?" -> {"act": "QUERY_INGREDIENT", "entities": {"ingredient": "olive oil"}}
 User: "Can I use butter instead of oil?" -> {"act": "INQUIRE_SUBSTITUTION", "entities": {"ingredient": "butter", "query": "Can I use butter instead of oil?"}}
 User: "What kind of oil?" -> {"act": "INQUIRE_SUBSTITUTION", "entities": {"ingredient": "oil", "query": "What kind of oil should I use?"}}
 User: "I don't have vanilla" -> {"act": "INQUIRE_SUBSTITUTION", "entities": {"ingredient": "vanilla", "query": "What can I substitute for vanilla?"}}

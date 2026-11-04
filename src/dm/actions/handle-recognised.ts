@@ -31,7 +31,18 @@ export async function handleRecognisedAction({
       content: m.content,
     }));
 
-  const parsed = await parseUtterance(utterance, { recentMessages });
+  // extract active machine state from snapshot to condition semantic parsing
+  const initialSnapshot = self.getSnapshot?.() as
+    | { can?: (event: CookingEvent) => boolean; context?: CookingContext; value?: unknown }
+    | undefined;
+  const currentState =
+    typeof initialSnapshot?.value === 'string'
+      ? initialSnapshot.value
+      : typeof initialSnapshot?.value === 'object' && initialSnapshot.value !== null
+        ? Object.keys(initialSnapshot.value)[0]
+        : undefined;
+
+  const parsed = await parseUtterance(utterance, { recentMessages, currentState });
   self.send({
     type: 'ACT_RESOLVED',
     act: parsed.act,
@@ -83,7 +94,7 @@ export async function handleRecognisedAction({
       break;
     case 'GOTO_STEP': {
       let targetStep = parsed.entities?.stepNumber;
-      if (targetStep === -1 || (!targetStep && /\b(last|final|end)\b/i.test(utterance))) {
+      if (targetStep === -1) {
         targetStep = activeContext?.recipe?.steps.length ?? 1;
       }
       if (typeof targetStep === 'number' && !Number.isNaN(targetStep) && targetStep >= 1) {
@@ -93,29 +104,9 @@ export async function handleRecognisedAction({
       }
       break;
     }
-    case 'QUERY_INGREDIENT': {
-      const ingredient = parsed.entities?.ingredient;
-      const escapedIngredient = ingredient ? ingredient.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
-      // route ingredient variety or clarification queries to `INQUIRE_SUBSTITUTION`
-      const isVarietyOrClarification =
-        Boolean(ingredient) &&
-        (/\b(what\s+(kind|type|sort)\s+of|which)\b/i.test(utterance) ||
-          (escapedIngredient
-            ? new RegExp(`\\bwhat\\s+${escapedIngredient}\\b`, 'i').test(utterance)
-            : false)) &&
-        !/\b(how much|how many|amount|quantity|measure|do (we|i) need)\b/i.test(utterance);
-
-      if (isVarietyOrClarification) {
-        eventToSend = {
-          type: 'INQUIRE_SUBSTITUTION',
-          ingredient,
-          query: parsed.entities?.query || utterance,
-        };
-      } else {
-        eventToSend = { type: 'QUERY_INGREDIENT', ingredient };
-      }
+    case 'QUERY_INGREDIENT':
+      eventToSend = { type: 'QUERY_INGREDIENT', ingredient: parsed.entities?.ingredient };
       break;
-    }
     case 'QUERY_STEP_DETAIL':
       eventToSend = {
         type: 'QUERY_STEP_DETAIL',
