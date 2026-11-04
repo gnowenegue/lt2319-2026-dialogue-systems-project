@@ -87,6 +87,12 @@ describe('Semantic Parser - Pure Parsing and Normalization Helpers', () => {
       expect(result).toEqual({ act: 'AFFIRM' });
     });
 
+    it('safely parses JSON when commentary contains extra curly braces', () => {
+      const text = 'Result: {"act": "NEXT_STEP"} (note: {debug: true} is discarded)';
+      const result = extractJsonPayload(text);
+      expect(result).toEqual({ act: 'NEXT_STEP' });
+    });
+
     it('returns empty object when content is empty or invalid JSON', () => {
       expect(extractJsonPayload('')).toEqual({});
       expect(extractJsonPayload('   ')).toEqual({});

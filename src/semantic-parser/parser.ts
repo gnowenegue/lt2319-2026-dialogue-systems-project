@@ -1,4 +1,4 @@
-import { createChatCompletion } from '../llm';
+import { createChatCompletion, safeExtractJson } from '../llm';
 import prompts from '../prompts';
 import {
   ACTS_REQUIRING_QUERY,
@@ -64,20 +64,8 @@ const parseString = (value: unknown): string | undefined =>
 /**
  * extracts and parses a JSON payload safely from model output, handling optional markdown formatting.
  */
-export const extractJsonPayload = (content: string): Record<string, unknown> => {
-  const trimmed = content.trim();
-  if (!trimmed) return {};
-
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return {};
-
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-};
+export const extractJsonPayload = (content: string): Record<string, unknown> =>
+  safeExtractJson<Record<string, unknown>>(content) ?? {};
 
 /**
  * cleans and sanitizes raw extracted entity slots, omitting undefined properties.
