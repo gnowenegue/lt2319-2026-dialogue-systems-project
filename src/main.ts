@@ -8,6 +8,7 @@ import { ROLES } from './constants';
 import { buildDebugReport, cookingMachine } from './dm';
 import type { Message, SpeechStatus } from './dm/types';
 import prompts from './prompts';
+import { preloadModel } from './rag';
 
 const button = document.querySelector<HTMLButtonElement>('#start-btn');
 const statusCardEl = document.querySelector<HTMLElement>('#status-card');
@@ -34,7 +35,7 @@ dmActor.system.inspect((inspectionEvent) => {
     inspectionEvent.actorRef === dmActor &&
     !inspectionEvent.event.type.startsWith('xstate.')
   ) {
-    console.log('[Cookmate] Event:', inspectionEvent.event.type, inspectionEvent.event);
+    console.log('[CookMate] Event:', inspectionEvent.event.type, inspectionEvent.event);
   } else if (inspectionEvent.type === '@xstate.snapshot' && inspectionEvent.actorRef === dmActor) {
     lastTriggeringEvent = inspectionEvent.event;
   }
@@ -42,7 +43,7 @@ dmActor.system.inspect((inspectionEvent) => {
 
 dmActor.start();
 const audioPipeline = new AudioPipeline();
-const wakeWordEngine = new WakeWordEngine();
+const wakeWordEngine = new WakeWordEngine({ modelName: 'hey_chef' });
 const pttController = new PushToTalkController();
 const pushStreamAdapter = getPushStreamAdapter();
 
@@ -60,7 +61,7 @@ async function ensureAudioStarted(): Promise<void> {
 
   try {
     await audioPipeline.start();
-    console.log('[Cookmate] Audio pipeline started (16 kHz mono)');
+    console.log('[CookMate] Audio pipeline started (16 kHz mono)');
 
     // pipe PCM chunks to openWakeWord worker and Azure push stream
     audioPipeline.onChunk((chunk) => {
@@ -71,19 +72,24 @@ async function ensureAudioStarted(): Promise<void> {
     wakeWordEngine
       .start()
       .then(() => {
-        console.log('[Cookmate] Wake word engine started (Hey Jarvis)');
+        console.log('[CookMate] Wake word engine started (Hey Chef)');
       })
       .catch((err) => {
-        console.warn('[Cookmate] Wake word engine deferred/warning:', err);
+        console.warn('[CookMate] Wake word engine deferred/warning:', err);
       });
   } catch (err) {
     audioStarted = false;
-    console.error('[Cookmate] Error initializing audio pipeline:', err);
+    console.error('[CookMate] Error initializing audio pipeline:', err);
   }
 }
 
-// auto-start microphone and wake word engine on load so users can say "Hey Jarvis" immediately
+// auto-start microphone and wake word engine on load so users can say "Hey Chef" immediately
 ensureAudioStarted().catch(() => {});
+
+// warm up embedding model in the background to prevent cold-start latency on RAG queries
+preloadModel().catch((err) => {
+  console.warn('[CookMate] Embedding model preload deferred/warning:', err);
+});
 
 // fallback: activate on first user interaction if browser policy deferred autoplay
 const startAudioOnInteraction = (): void => {
@@ -118,14 +124,14 @@ async function handleTrigger(source: 'wake-word' | 'ptt'): Promise<void> {
 // listen for wake word detection
 wakeWordEngine.onTrigger((detection) => {
   console.log(
-    `[Cookmate] Wake word detected: ${detection.modelName} (score: ${(detection.score * 100).toFixed(1)}%)`,
+    `[CookMate] Wake word detected: ${detection.modelName} (score: ${(detection.score * 100).toFixed(1)}%)`,
   );
   handleTrigger('wake-word');
 });
 
 // listen for Push-To-Talk spacebar toggle
 pttController.onTrigger(() => {
-  console.log('[Cookmate] Push-to-Talk (Spacebar) triggered');
+  console.log('[CookMate] Push-to-Talk (Spacebar) triggered');
   handleTrigger('ptt');
 });
 
@@ -151,7 +157,7 @@ function renderChatHistory(container: HTMLElement, messages: Message[]): void {
     } else if (msg.role === ROLES.User) {
       labelEl.textContent = '👤 You';
     } else {
-      labelEl.textContent = '🧑‍🍳 Cookmate';
+      labelEl.textContent = '🧑‍🍳 CookMate';
     }
     headerEl.appendChild(labelEl);
 
@@ -215,7 +221,7 @@ function updateVoiceIndicator(status: SpeechStatus): void {
       break;
     case 'speaking':
       voiceHeroTitleEl.textContent = 'SPEAKING';
-      voiceHeroSubtitleEl.textContent = 'Cookmate is speaking...';
+      voiceHeroSubtitleEl.textContent = 'CookMate is speaking...';
       break;
     case 'processing':
       voiceHeroTitleEl.textContent = 'THINKING';
@@ -228,7 +234,7 @@ function updateVoiceIndicator(status: SpeechStatus): void {
     }
     default: {
       voiceHeroTitleEl.textContent = 'STANDBY';
-      voiceHeroSubtitleEl.textContent = 'Say "Hey Jarvis" or tap Spacebar to speak';
+      voiceHeroSubtitleEl.textContent = 'Say "Hey Chef" or tap Spacebar to speak';
       break;
     }
   }
@@ -240,7 +246,7 @@ let previousMessages: Message[] | undefined;
 dmActor.subscribe((snapshot) => {
   if (snapshot.value !== previousState) {
     console.group(
-      `[Cookmate] State Transition: ${String(previousState ?? 'Initial')} → ${String(snapshot.value)}`,
+      `[CookMate] State Transition: ${String(previousState ?? 'Initial')} → ${String(snapshot.value)}`,
     );
     if (lastTriggeringEvent) {
       console.log('Triggered by Event:', lastTriggeringEvent);
@@ -347,7 +353,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text);
       return true;
     } catch (err) {
-      console.warn('[Cookmate] navigator.clipboard.writeText failed, using fallback:', err);
+      console.warn('[CookMate] navigator.clipboard.writeText failed, using fallback:', err);
     }
   }
 
@@ -365,7 +371,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
     document.body.removeChild(textarea);
     return successful;
   } catch (err) {
-    console.error('[Cookmate] Fallback copy also failed:', err);
+    console.error('[CookMate] Fallback copy also failed:', err);
     return false;
   }
 }
@@ -392,7 +398,7 @@ if (copyDebugBtn) {
         if (copyBtnTextEl) copyBtnTextEl.textContent = 'Copy Debug Info';
       }, 2000);
     } catch (err) {
-      console.error('[Cookmate] Failed to copy debug logs to clipboard:', err);
+      console.error('[CookMate] Failed to copy debug logs to clipboard:', err);
       if (copyBtnTextEl) copyBtnTextEl.textContent = 'Copy failed';
       setTimeout(() => {
         if (copyBtnTextEl) copyBtnTextEl.textContent = 'Copy Debug Info';
