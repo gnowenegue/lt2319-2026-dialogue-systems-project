@@ -1,4 +1,4 @@
-import { ACTIVE_REFINER_MODEL, openai, recordLlmUsage } from '../llm';
+import { ACTIVE_REFINER_MODEL, createChatCompletion } from '../llm';
 import prompts from '../prompts';
 import { REFINER_TEMPERATURE } from './constants';
 import { calculateTotalMinutes, normalizeMealDBRecipe } from './normalizer';
@@ -10,7 +10,7 @@ import type {
   RefinerOptions,
 } from './types';
 
-// parses and formats ingredients returned by the LLM
+// parse and format ingredients returned by the LLM
 function parseRefinedIngredients(ingredients?: Partial<RecipeIngredient>[]): RecipeIngredient[] {
   if (!Array.isArray(ingredients)) {
     return [];
@@ -29,7 +29,7 @@ function parseRefinedIngredients(ingredients?: Partial<RecipeIngredient>[]): Rec
   });
 }
 
-// parses and indexes cooking steps returned by the LLM
+// parse and index cooking steps returned by the LLM
 function parseRefinedSteps(steps?: Partial<RecipeStep>[]): RecipeStep[] {
   if (!Array.isArray(steps)) {
     return [];
@@ -57,23 +57,20 @@ export async function refineRecipeWithLLM(
   options: RefinerOptions = {},
 ): Promise<NormalizedRecipe> {
   const base = normalizeMealDBRecipe(meal);
-  const client = options.client ?? openai;
-  const model = options.model ?? ACTIVE_REFINER_MODEL;
-
   try {
-    const completion = await client.chat.completions.create({
-      model,
+    const { content } = await createChatCompletion({
+      callName: 'recipe-refinement',
+      client: options.client,
+      model: options.model ?? ACTIVE_REFINER_MODEL,
       messages: [
         { role: 'system', content: prompts.recipeRefinement },
         { role: 'user', content: JSON.stringify(base) },
       ],
-      response_format: { type: 'json_object' },
+      responseFormat: { type: 'json_object' },
       temperature: REFINER_TEMPERATURE,
     });
 
-    recordLlmUsage('recipe-refinement', model, completion.usage);
-
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    const parsed = JSON.parse(content || '{}');
     const ingredients = parseRefinedIngredients(parsed.ingredients);
     const steps = parseRefinedSteps(parsed.steps);
 

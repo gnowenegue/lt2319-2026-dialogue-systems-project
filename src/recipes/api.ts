@@ -16,9 +16,7 @@ const refinedRecipeCache = new Map<string, NormalizedRecipe>();
 async function fetchFromMealDB<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(`${BASE_URL}/${endpoint}`);
   if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
+    url.search = new URLSearchParams(params).toString();
   }
 
   try {

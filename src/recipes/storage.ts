@@ -5,7 +5,7 @@ import type { NormalizedRecipe } from './types';
  */
 export const RECIPE_STORAGE_PREFIX = 'cookmate:recipe:v1:';
 
-// verify browser environment and localStorage availability safely across Node and web
+// verify browser environment and `localStorage` availability safely across Node and web
 function isLocalStorageAvailable(): boolean {
   try {
     return typeof window !== 'undefined' && Boolean(window.localStorage);
@@ -30,7 +30,7 @@ export function getRecipeFromStorage(id: string): NormalizedRecipe | null {
     }
     return JSON.parse(raw) as NormalizedRecipe;
   } catch {
-    // return null if reading or parsing fails
+    // return `null` if reading or parsing fails
     return null;
   }
 }
