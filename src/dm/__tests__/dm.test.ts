@@ -434,4 +434,24 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
     expect(actor.getSnapshot().context.prepBatchIndex).toBe(0);
   });
+
+  it('resets recipe and restarts via WAKE_WORD from Completed', async () => {
+    const actor = createTestCookingActor();
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+    actor.send({ type: 'SEARCH_RECIPE', query: 'arrabiata' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    actor.send({ type: 'SKIP_PREP' });
+    actor.send({ type: 'GOTO_STEP', stepNumber: 4 });
+    actor.send({ type: 'NEXT_STEP' });
+    expect(actor.getSnapshot().value).toBe('Completed');
+
+    // trigger by wake word while Completed
+    actor.send({ type: 'WAKE_WORD' });
+    expect(actor.getSnapshot().value).toBe('PromptRecipe');
+    expect(actor.getSnapshot().context.recipe).toBeNull();
+    expect(actor.getSnapshot().context.currentStepIndex).toBe(0);
+    expect(actor.getSnapshot().context.prepBatchIndex).toBe(0);
+  });
 });

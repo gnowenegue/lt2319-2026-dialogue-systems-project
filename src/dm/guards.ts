@@ -1,5 +1,5 @@
 import prompts from '../prompts';
-import { hasMorePrepBatches as checkHasMorePrepBatches } from './helpers';
+import { hasMorePrepBatches as checkHasMorePrepBatches, matchCandidate } from './helpers';
 import type { CookingContext, CookingEvent } from './types';
 
 /**
@@ -15,6 +15,15 @@ export const cookingGuards = {
     if (event.type !== 'GOTO_STEP') return false;
     const stepNum = event.stepNumber;
     return stepNum >= 1 && stepNum <= (context.recipe?.steps.length ?? 0);
+  },
+  hasMatchingCandidate: ({ context, event }: { context: CookingContext; event: CookingEvent }) => {
+    if (event.type === 'SELECT_RECIPE') {
+      return matchCandidate(context.recipeCandidates ?? [], event.index, event.query) !== null;
+    }
+    if (event.type === 'GOTO_STEP') {
+      return matchCandidate(context.recipeCandidates ?? [], event.stepNumber) !== null;
+    }
+    return false;
   },
   isUnderNoInputLimit: ({ context }: { context: CookingContext }) =>
     context.noInputCount < prompts.noInput.length,
