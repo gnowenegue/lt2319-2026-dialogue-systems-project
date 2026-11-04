@@ -2,6 +2,8 @@ import './style.css';
 
 import { createActor } from 'xstate';
 
+import { AudioPipeline, PushToTalkController, WakeWordEngine } from './audio';
+import { getPushStreamAdapter } from './configs';
 import { ROLES } from './constants';
 import { buildDebugReport, cookingMachine } from './dm';
 import type { Message, SpeechStatus } from './dm/types';
@@ -22,6 +24,93 @@ const systemPromptTextEl = document.querySelector<HTMLElement>('#system-prompt-t
 const chatHistoryEl = document.querySelector<HTMLElement>('#chat-history');
 
 const dmActor = createActor(cookingMachine).start();
+const audioPipeline = new AudioPipeline();
+const wakeWordEngine = new WakeWordEngine();
+const pttController = new PushToTalkController();
+const pushStreamAdapter = getPushStreamAdapter();
+
+// enable Spacebar Push-To-Talk hotkey immediately on page load
+pttController.enable();
+
+let audioStarted = false;
+
+/**
+ * ensures Web Audio hardware, wake word worker, and PTT hotkey are initialized
+ */
+async function ensureAudioStarted(): Promise<void> {
+  if (audioStarted) return;
+  audioStarted = true;
+
+  try {
+    await audioPipeline.start();
+    console.log('[Cookmate] Audio pipeline started (16 kHz mono)');
+
+    // pipe PCM chunks to openWakeWord worker and Azure push stream
+    audioPipeline.onChunk((chunk) => {
+      wakeWordEngine.processChunk(chunk);
+      pushStreamAdapter.pushChunk(chunk);
+    });
+
+    wakeWordEngine
+      .start()
+      .then(() => {
+        console.log('[Cookmate] Wake word engine started (Hey Jarvis)');
+      })
+      .catch((err) => {
+        console.warn('[Cookmate] Wake word engine deferred/warning:', err);
+      });
+  } catch (err) {
+    audioStarted = false;
+    console.error('[Cookmate] Error initializing audio pipeline:', err);
+  }
+}
+
+// auto-start microphone and wake word engine on load so users can say "Hey Jarvis" immediately
+ensureAudioStarted().catch(() => {});
+
+// fallback: activate on first user interaction if browser policy deferred autoplay
+const startAudioOnInteraction = (): void => {
+  if (!audioStarted) {
+    ensureAudioStarted().catch(() => {});
+  }
+};
+window.addEventListener('click', startAudioOnInteraction, { once: true });
+window.addEventListener('keydown', startAudioOnInteraction, { once: true });
+
+/**
+ * handles wake word detection or manual PTT toggle
+ */
+async function handleTrigger(source: 'wake-word' | 'ptt'): Promise<void> {
+  await ensureAudioStarted();
+
+  const snapshot = dmActor.getSnapshot();
+  const stateStr = String(snapshot.value);
+
+  // flush 500ms pre-roll to Azure push stream so initial syllables are preserved
+  const preRoll = audioPipeline.getPreRoll();
+  pushStreamAdapter.startStreaming(preRoll);
+  audioPipeline.clearPreRoll();
+
+  if (stateStr === 'Idle') {
+    dmActor.send({ type: 'CLICK' });
+  } else {
+    dmActor.send(source === 'wake-word' ? { type: 'WAKE_WORD' } : { type: 'PTT_TRIGGER' });
+  }
+}
+
+// listen for wake word detection
+wakeWordEngine.onTrigger((detection) => {
+  console.log(
+    `[Cookmate] Wake word detected: ${detection.modelName} (score: ${(detection.score * 100).toFixed(1)}%)`,
+  );
+  handleTrigger('wake-word');
+});
+
+// listen for Push-To-Talk spacebar toggle
+pttController.onTrigger(() => {
+  console.log('[Cookmate] Push-to-Talk (Spacebar) triggered');
+  handleTrigger('ptt');
+});
 
 /**
  * renders conversation message items into the scrollable history feed
@@ -122,17 +211,25 @@ function updateVoiceIndicator(status: SpeechStatus): void {
     }
     default: {
       voiceHeroTitleEl.textContent = 'STANDBY';
-      voiceHeroSubtitleEl.textContent = 'Click "Start Cooking" to begin';
+      voiceHeroSubtitleEl.textContent = 'Say "Hey Jarvis" or tap Spacebar to speak';
       break;
     }
   }
 }
 
+let previousState: unknown;
+let previousMessages: Message[] | undefined;
+
 dmActor.subscribe((snapshot) => {
-  console.group('[Cookmate] State Transition');
-  console.log('Value:', snapshot.value);
-  console.log('Last Spoken:', snapshot.context.lastSpokenUtterance);
-  console.groupEnd();
+  if (snapshot.value !== previousState) {
+    console.group(
+      `[Cookmate] State Transition: ${String(previousState ?? 'Initial')} → ${String(snapshot.value)}`,
+    );
+    console.log('Value:', snapshot.value);
+    console.log('Last Spoken:', snapshot.context.lastSpokenUtterance);
+    console.groupEnd();
+    previousState = snapshot.value;
+  }
 
   const stateStr = String(snapshot.value);
   if (machineStateEl) {
@@ -148,6 +245,13 @@ dmActor.subscribe((snapshot) => {
         ? 'paused'
         : (snapshot.context.speechStatus ?? 'idle');
   updateVoiceIndicator(currentStatus);
+
+  // Synchronize Azure push audio streaming with active listening state
+  if (currentStatus === 'listening') {
+    pushStreamAdapter.startStreaming();
+  } else {
+    pushStreamAdapter.stopStreaming();
+  }
 
   // Update button visibility / text based on state
   if (button) {
@@ -198,13 +302,18 @@ dmActor.subscribe((snapshot) => {
   }
 
   // Update scrollable full conversation history
-  if (chatHistoryEl) {
+  if (chatHistoryEl && snapshot.context.messages !== previousMessages) {
+    previousMessages = snapshot.context.messages;
     renderChatHistory(chatHistoryEl, snapshot.context.messages);
   }
 });
 
 if (button) {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
+    await ensureAudioStarted();
+    const preRoll = audioPipeline.getPreRoll();
+    pushStreamAdapter.startStreaming(preRoll);
+    audioPipeline.clearPreRoll();
     dmActor.send({ type: 'CLICK' });
   });
 }
