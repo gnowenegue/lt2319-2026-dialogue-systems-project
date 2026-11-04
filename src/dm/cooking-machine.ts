@@ -199,22 +199,32 @@ export const cookingMachine = setup({
         }),
       },
     ],
-    LISTEN_COMPLETE: {
-      guard: 'hasPendingUtterance',
-      actions: [
-        assign(({ context }) => {
-          const text = context.pendingUtterance ?? '';
-          const isPaused = context.noInputCount >= prompts.noInput.length;
-          const asst = prepareAssistantSpeech(context, text);
-          return {
-            ...asst,
-            pendingUtterance: null,
-            speechStatus: isPaused ? ('paused' as const) : ('speaking' as const),
-          };
-        }),
-        'speakLastUtteranceNoBargeIn',
-      ],
-    },
+    LISTEN_COMPLETE: [
+      {
+        guard: 'hasPendingUtterance',
+        actions: [
+          assign(({ context }) => {
+            const text = context.pendingUtterance ?? '';
+            const isPaused = context.noInputCount >= prompts.noInput.length;
+            const asst = prepareAssistantSpeech(context, text);
+            return {
+              ...asst,
+              pendingUtterance: null,
+              speechStatus: isPaused ? ('paused' as const) : ('speaking' as const),
+            };
+          }),
+          'speakLastUtteranceNoBargeIn',
+        ],
+      },
+      {
+        guard: ({ context }) =>
+          context.speechStatus === 'listening' || Boolean(context.silentNoInput),
+        actions: [
+          assign({ silentNoInput: false, speechStatus: 'listening' }),
+          { type: 'spst.listen' },
+        ],
+      },
+    ],
     UNKNOWN: {
       actions: [
         assign(({ context }) => prepareAssistantSpeech(context, prompts.cannotHear)),
@@ -671,7 +681,7 @@ export const cookingMachine = setup({
         LISTEN_COMPLETE: [
           {
             guard: ({ context }) =>
-              context.speechStatus !== 'speaking' || Boolean(context.silentNoInput),
+              context.speechStatus === 'listening' || Boolean(context.silentNoInput),
             actions: [
               assign({ silentNoInput: false, speechStatus: 'listening' }),
               { type: 'spst.listen' },
@@ -769,7 +779,7 @@ export const cookingMachine = setup({
         LISTEN_COMPLETE: [
           {
             guard: ({ context }) =>
-              context.speechStatus !== 'speaking' || Boolean(context.silentNoInput),
+              context.speechStatus === 'listening' || Boolean(context.silentNoInput),
             actions: [
               assign({ silentNoInput: false, speechStatus: 'listening' }),
               { type: 'spst.listen' },

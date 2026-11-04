@@ -23,7 +23,24 @@ const copyBtnTextEl = document.querySelector<HTMLElement>('#copy-btn-text');
 const systemPromptTextEl = document.querySelector<HTMLElement>('#system-prompt-text');
 const chatHistoryEl = document.querySelector<HTMLElement>('#chat-history');
 
-const dmActor = createActor(cookingMachine).start();
+const dmActor = createActor(cookingMachine);
+
+let lastTriggeringEvent: unknown;
+
+// log events received by Dialogue Manager, ignoring internal XState lifecycles
+dmActor.system.inspect((inspectionEvent) => {
+  if (
+    inspectionEvent.type === '@xstate.event' &&
+    inspectionEvent.actorRef === dmActor &&
+    !inspectionEvent.event.type.startsWith('xstate.')
+  ) {
+    console.log('[Cookmate] Event:', inspectionEvent.event.type, inspectionEvent.event);
+  } else if (inspectionEvent.type === '@xstate.snapshot' && inspectionEvent.actorRef === dmActor) {
+    lastTriggeringEvent = inspectionEvent.event;
+  }
+});
+
+dmActor.start();
 const audioPipeline = new AudioPipeline();
 const wakeWordEngine = new WakeWordEngine();
 const pttController = new PushToTalkController();
@@ -225,6 +242,9 @@ dmActor.subscribe((snapshot) => {
     console.group(
       `[Cookmate] State Transition: ${String(previousState ?? 'Initial')} → ${String(snapshot.value)}`,
     );
+    if (lastTriggeringEvent) {
+      console.log('Triggered by Event:', lastTriggeringEvent);
+    }
     console.log('Value:', snapshot.value);
     console.log('Last Spoken:', snapshot.context.lastSpokenUtterance);
     console.groupEnd();
