@@ -1,6 +1,6 @@
 import { fromPromise } from 'xstate';
 
-import { synthesizeCulinaryAdvice } from '../../rag/service';
+import { synthesizeCulinaryAdvice } from '../../rag';
 import type { QueryKnowledgeInput } from '../types';
 
 /**

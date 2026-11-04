@@ -34,6 +34,11 @@ export const DEFAULT_QDRANT_PORT = 6333 as const;
 export const DEFAULT_QDRANT_URL = 'http://localhost' as const;
 
 /**
+ * default fallback message returned when an empty culinary query is submitted
+ */
+export const EMPTY_QUERY_FALLBACK = 'Please provide a culinary question.' as const;
+
+/**
  * sampling temperature for LLM RAG spoken advice synthesis
  */
 export const RAG_TEMPERATURE = 0.2 as const;

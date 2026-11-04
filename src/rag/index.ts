@@ -1,3 +1,5 @@
 export * from './constants';
-export * from './service';
+export * from './embedding';
+export * from './retrieval';
+export * from './synthesizer';
 export * from './types';
