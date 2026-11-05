@@ -20,9 +20,21 @@
         </button>
 
         <div id="status-card" class="status-card">
-          <!-- Top bar with state and recipe progress -->
+          <!-- Top bar with state, input trigger readiness, and recipe progress -->
           <div class="status-header">
-            <span class="badge" id="machine-state">Idle</span>
+            <div class="status-header-meta">
+              <span class="badge" id="machine-state">Idle</span>
+              <div class="trigger-indicators" role="status" aria-label="Input trigger readiness">
+                <span id="indicator-wakeword" class="indicator-badge status-loading" title="Client-side wake word detector">
+                  <span class="indicator-dot"></span>
+                  <span class="indicator-label">"Hey Chef" loading...</span>
+                </span>
+                <span id="indicator-ptt" class="indicator-badge status-ready" title="Spacebar Push-to-Talk hotkey">
+                  <span class="indicator-dot"></span>
+                  <span class="indicator-label">Spacebar PTT</span>
+                </span>
+              </div>
+            </div>
             <span class="recipe-info" id="recipe-progress">No active recipe</span>
           </div>
 

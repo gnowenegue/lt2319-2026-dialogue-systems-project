@@ -2,7 +2,7 @@ import { ROLES } from './constants';
 import type { Message, SpeechStatus } from './dm/types';
 import prompts from './prompts';
 import type { NormalizedRecipe } from './recipes/types';
-import { calculateRemainingSeconds, type ActiveTimer } from './timers';
+import { type ActiveTimer, calculateRemainingSeconds } from './timers';
 
 export interface DOMElements {
   startButton: HTMLButtonElement | null;
@@ -18,6 +18,8 @@ export interface DOMElements {
   copyBtnText: HTMLElement | null;
   systemPromptText: HTMLElement | null;
   chatHistory: HTMLElement | null;
+  wakeWordIndicator: HTMLElement | null;
+  pttIndicator: HTMLElement | null;
 }
 
 /**
@@ -38,6 +40,8 @@ export const getDOMElements = (): DOMElements => {
     copyBtnText: document.querySelector<HTMLElement>('#copy-btn-text'),
     systemPromptText: document.querySelector<HTMLElement>('#system-prompt-text'),
     chatHistory: document.querySelector<HTMLElement>('#chat-history'),
+    wakeWordIndicator: document.querySelector<HTMLElement>('#indicator-wakeword'),
+    pttIndicator: document.querySelector<HTMLElement>('#indicator-ptt'),
   };
 };
 
@@ -159,6 +163,33 @@ export const updateVoiceIndicator = (
   const copy = VOICE_HERO_COPY[status] ?? VOICE_HERO_COPY.idle;
   elements.voiceHeroTitle.textContent = copy.title;
   elements.voiceHeroSubtitle.textContent = copy.subtitle;
+};
+
+export type TriggerIndicatorStatus = 'loading' | 'ready' | 'active' | 'error' | 'disabled';
+
+/**
+ * updates visual state and label for a voice trigger readiness badge (wake word or PTT)
+ */
+export const updateTriggerIndicator = (
+  element: HTMLElement | null,
+  status: TriggerIndicatorStatus,
+  label: string,
+): void => {
+  if (!element) return;
+
+  element.classList.remove(
+    'status-loading',
+    'status-ready',
+    'status-active',
+    'status-error',
+    'status-disabled',
+  );
+  element.classList.add(`status-${status}`);
+
+  const labelEl = element.querySelector('.indicator-label');
+  if (labelEl) {
+    labelEl.textContent = label;
+  }
 };
 
 /**

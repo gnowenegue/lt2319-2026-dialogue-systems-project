@@ -158,6 +158,109 @@ body {
   background-color: #94a3b8;
 }
 
+.status-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.trigger-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72em;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.indicator-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #94a3b8;
+  transition: all 0.2s ease;
+}
+
+/* Ready state (green glow) */
+.indicator-badge.status-ready {
+  color: rgba(220, 252, 231, 0.9);
+  background-color: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.indicator-badge.status-ready .indicator-dot {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+/* Loading state (amber pulsing) */
+.indicator-badge.status-loading {
+  color: rgba(254, 240, 138, 0.9);
+  background-color: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.28);
+}
+.indicator-badge.status-loading .indicator-dot {
+  background-color: #eab308;
+  animation: pulse-dot 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+/* Active / Triggered state (cyan glow) */
+.indicator-badge.status-active {
+  color: #ffffff;
+  background-color: rgba(6, 182, 212, 0.2);
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+  transform: scale(1.03);
+}
+.indicator-badge.status-active .indicator-dot {
+  background-color: #06b6d4;
+  box-shadow: 0 0 8px #06b6d4;
+}
+
+/* Error state (red) */
+.indicator-badge.status-error {
+  color: rgba(254, 202, 202, 0.85);
+  background-color: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.indicator-badge.status-error .indicator-dot {
+  background-color: #ef4444;
+}
+
+/* Disabled state */
+.indicator-badge.status-disabled {
+  opacity: 0.5;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 /* Prominent Voice Hero Banner */
 .voice-hero-banner {
   display: flex;
@@ -442,7 +545,9 @@ body {
   font-size: 0.78em;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition:
+    background-color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .btn-expire-timer:hover {
@@ -703,6 +808,31 @@ body {
   }
   .badge::before {
     background-color: #64748b;
+  }
+  .indicator-badge {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    color: #475569;
+  }
+  .indicator-badge.status-ready {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+  }
+  .indicator-badge.status-loading {
+    background-color: #fefce8;
+    border-color: #fef08a;
+    color: #854d0e;
+  }
+  .indicator-badge.status-active {
+    background-color: #ecfeff;
+    border-color: #a5f3fc;
+    color: #0e7490;
+  }
+  .indicator-badge.status-error {
+    background-color: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
   }
   .recipe-info {
     color: #475569;
