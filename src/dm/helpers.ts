@@ -218,6 +218,33 @@ export const matchCandidate = (
 };
 
 /**
+ * resolves unique timer labels, auto-disambiguating generic labels when multiple timers are active
+ */
+export const resolveTimerLabel = (
+  activeTimers: readonly { label: string }[] = [],
+  rawLabel?: string,
+): string => {
+  const base = rawLabel?.trim() || 'cooking';
+  const isGeneric = base.toLowerCase() === 'cooking' || base.toLowerCase() === 'timer';
+
+  if (!isGeneric) {
+    return base;
+  }
+
+  const existingGeneric = activeTimers.some((t) => t.label.toLowerCase() === base.toLowerCase());
+
+  if (!existingGeneric) {
+    return base;
+  }
+
+  let index = 2;
+  while (activeTimers.some((t) => t.label.toLowerCase() === `${base.toLowerCase()} ${index}`)) {
+    index++;
+  }
+  return `${base} ${index}`;
+};
+
+/**
  * creates updated assistant speech context fields and appends the spoken turn to conversation history
  */
 export const prepareAssistantSpeech = (

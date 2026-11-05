@@ -86,11 +86,16 @@ export const timerActorLogic = fromCallback<
           totalDurationSeconds: duration,
         };
 
-        // replace existing timer with matching `id` or `label`
+        const isGeneric =
+          trimmedLabel.toLowerCase() === 'cooking' || trimmedLabel.toLowerCase() === 'timer';
+
+        // replace existing timer with matching `id` or specific `label`
         activeTimers = [
-          ...activeTimers.filter(
-            (t) => t.id !== event.id && t.label.toLowerCase() !== trimmedLabel.toLowerCase(),
-          ),
+          ...activeTimers.filter((t) => {
+            if (t.id === event.id) return false;
+            if (!isGeneric && t.label.toLowerCase() === trimmedLabel.toLowerCase()) return false;
+            return true;
+          }),
           newTimer,
         ];
         syncHeartbeat();

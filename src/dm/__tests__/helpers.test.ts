@@ -10,6 +10,7 @@ import {
   resolveActiveStateName,
   resolveContextualGreeting,
   resolveContextualHelp,
+  resolveTimerLabel,
 } from '../helpers';
 import { createMockRecipe } from './test-helpers';
 
@@ -131,6 +132,28 @@ describe('Dialogue Manager - Pure Spoken Formatting Helpers', () => {
     expect(formatCheckTimerUtterance(multiTimers, undefined, now)).toBe(
       'You have 2 active timers: pasta with 2 minutes left, and oven with 15 minutes left.',
     );
+  });
+
+  it('disambiguates generic timer labels while preserving specific food labels', () => {
+    // empty timers
+    expect(resolveTimerLabel([], undefined)).toBe('cooking');
+    expect(resolveTimerLabel([], 'cooking')).toBe('cooking');
+    expect(resolveTimerLabel([], 'pasta')).toBe('pasta');
+
+    // first generic timer already exists
+    const singleCooking = [{ label: 'cooking' }];
+    expect(resolveTimerLabel(singleCooking, undefined)).toBe('cooking 2');
+    expect(resolveTimerLabel(singleCooking, 'cooking')).toBe('cooking 2');
+    expect(resolveTimerLabel(singleCooking, 'timer')).toBe('timer');
+    expect(resolveTimerLabel(singleCooking, 'pasta')).toBe('pasta');
+
+    // multiple generic timers already exist
+    const multiCooking = [{ label: 'cooking' }, { label: 'cooking 2' }];
+    expect(resolveTimerLabel(multiCooking, 'cooking')).toBe('cooking 3');
+
+    // specific labels are not auto-incremented
+    const pastaTimers = [{ label: 'pasta' }];
+    expect(resolveTimerLabel(pastaTimers, 'pasta')).toBe('pasta');
   });
 
   describe('prepareAssistantSpeech helper', () => {

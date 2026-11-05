@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActor } from 'xstate';
-
-import { calculateRemainingSeconds, createHeartbeat, timerActorLogic } from '..';
 import { formatTimeRemaining } from '../../ui';
+import { calculateRemainingSeconds, createHeartbeat, timerActorLogic } from '..';
 import type { ActiveTimer } from '../types';
 
 describe('Timer - Helper Functions', () => {
@@ -220,6 +219,40 @@ describe('Timer - Lifecycle & Event Messaging', () => {
     expect(latestTimers).toHaveLength(1);
     expect(latestTimers[0].id).toBe('2');
     expect(latestTimers[0].totalDurationSeconds).toBe(600);
+
+    actor.stop();
+  });
+
+  it('does not replace active timers when labels are generic (cooking or timer)', () => {
+    let latestTimers: readonly ActiveTimer[] = [];
+
+    const actor = createActor(timerActorLogic);
+    actor.on('TIMERS_UPDATED', (event) => {
+      latestTimers = event.timers;
+    });
+
+    actor.start();
+
+    actor.send({
+      type: 'START_TIMER',
+      id: '1',
+      label: 'cooking',
+      durationSeconds: 300,
+    });
+
+    expect(latestTimers).toHaveLength(1);
+    expect(latestTimers[0].id).toBe('1');
+
+    // second generic timer with different ID should not replace the first one
+    actor.send({
+      type: 'START_TIMER',
+      id: '2',
+      label: 'cooking',
+      durationSeconds: 60,
+    });
+
+    expect(latestTimers).toHaveLength(2);
+    expect(latestTimers.map((t) => t.id)).toEqual(['1', '2']);
 
     actor.stop();
   });

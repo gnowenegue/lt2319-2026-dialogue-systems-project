@@ -131,4 +131,39 @@ describe('Dialogue Manager - Kitchen Timers Integration', () => {
 
     actor.stop();
   });
+
+  it('manages multiple generic timers concurrently with auto-disambiguation', () => {
+    const actor = createTestCookingActor();
+    actor.send({ type: 'START' });
+    actor.send({ type: 'ASRTTS_READY' });
+
+    // cook says: "Set timer for 1 minute"
+    actor.send({
+      type: 'SET_TIMER',
+      durationSeconds: 60,
+    });
+
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'Started a 1 minute timer for cooking.',
+    );
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(1);
+    expect(actor.getSnapshot().context.activeTimers[0].label).toBe('cooking');
+
+    // cook says: "Set another timer for 5 seconds"
+    actor.send({
+      type: 'SET_TIMER',
+      durationSeconds: 5,
+    });
+
+    expect(actor.getSnapshot().context.lastSpokenUtterance).toBe(
+      'Started a 5 seconds timer for cooking 2.',
+    );
+    expect(actor.getSnapshot().context.activeTimers).toHaveLength(2);
+    expect(actor.getSnapshot().context.activeTimers.map((t) => t.label)).toEqual([
+      'cooking',
+      'cooking 2',
+    ]);
+
+    actor.stop();
+  });
 });
