@@ -81,6 +81,7 @@ export class WakeWordEngine {
           modelName: this.modelName,
           modelsPath: this.modelsPath,
           threshold: this.threshold,
+          cooldownMs: this.cooldownMs,
         };
         this.worker.postMessage(initMsg);
       } catch (err) {

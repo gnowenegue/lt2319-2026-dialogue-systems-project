@@ -1,5 +1,6 @@
 import * as ort from 'onnxruntime-web/wasm';
 import {
+  DEFAULT_COOLDOWN_MS,
   DEFAULT_DETECTION_THRESHOLD,
   EMBEDDING_DIMS,
   MEL_BINS,
@@ -21,6 +22,8 @@ let wwSession: ort.InferenceSession | null = null;
 
 let currentModelName = '';
 let currentThreshold: number = DEFAULT_DETECTION_THRESHOLD;
+let currentCooldownMs: number = DEFAULT_COOLDOWN_MS;
+let lastTriggerTimestamp = 0;
 
 // rolling buffer of mel spectrogram frames: [REQUIRED_MEL_FRAMES * MEL_BINS]
 const totalMelCapacity = REQUIRED_MEL_FRAMES * MEL_BINS;
@@ -46,9 +49,12 @@ const initSessions = async (
   modelsPath: string,
   modelName: string,
   threshold: number,
+  cooldownMs?: number,
 ): Promise<void> => {
   currentModelName = modelName;
   currentThreshold = threshold;
+  currentCooldownMs = cooldownMs ?? DEFAULT_COOLDOWN_MS;
+  lastTriggerTimestamp = 0;
 
   // normalize models path for relative or absolute urls
   const baseUrl = modelsPath.endsWith('/') ? modelsPath : `${modelsPath}/`;
@@ -155,17 +161,20 @@ const processChunk = async (chunk: Int16Array): Promise<void> => {
   });
 
   const rawScore = (wwOutput[wwSession.outputNames[0]].data as Float32Array)[0];
+  const now = Date.now();
+  const inCooldown = now - lastTriggerTimestamp < currentCooldownMs;
 
-  // log near-miss and positive detections to assist calibration in DevTools
-  if (rawScore >= SCORE_LOG_THRESHOLD) {
+  // log near-miss and positive detections outside cooldown window to assist DevTools calibration
+  if (!inCooldown && rawScore >= SCORE_LOG_THRESHOLD) {
     const isTrigger = rawScore >= currentThreshold;
     console.log(
       `[WakeWord] ${isTrigger ? '🎯 TRIGGER' : '👂 Heard'}: ${(rawScore * 100).toFixed(1)}% (threshold: ${(currentThreshold * 100).toFixed(0)}%)`,
     );
   }
 
-  // emit detection event if confidence exceeds configured threshold
-  if (rawScore >= currentThreshold) {
+  // emit detection event if confidence exceeds configured threshold and outside cooldown window
+  if (!inCooldown && rawScore >= currentThreshold) {
+    lastTriggerTimestamp = now;
     postReply({
       type: 'DETECTION',
       score: rawScore,
@@ -183,7 +192,7 @@ self.onmessage = async (event: MessageEvent<WakeWordWorkerInMessage>): Promise<v
   try {
     switch (msg.type) {
       case 'INIT': {
-        await initSessions(msg.modelsPath, msg.modelName, msg.threshold);
+        await initSessions(msg.modelsPath, msg.modelName, msg.threshold, msg.cooldownMs);
         break;
       }
       case 'PROCESS_CHUNK': {
@@ -198,6 +207,7 @@ self.onmessage = async (event: MessageEvent<WakeWordWorkerInMessage>): Promise<v
         embBuffer.fill(0);
         accumulatedMelFrames = 0;
         accumulatedEmbFrames = 0;
+        lastTriggerTimestamp = 0;
         break;
       }
     }

@@ -1,5 +1,6 @@
 export { AudioPipeline } from './audio-pipeline';
 export { AzurePushStreamAdapter, type AzurePushStreamState } from './azure-push-stream';
+export { playSleepChime, playWakeChime } from './chimes';
 export { CircularAudioBuffer } from './circular-buffer';
 export * from './constants';
 export type { PttTriggerListener } from './ptt';

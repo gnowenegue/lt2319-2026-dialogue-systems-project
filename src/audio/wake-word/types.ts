@@ -57,6 +57,7 @@ export type WakeWordWorkerInMessage =
       modelName: string;
       modelsPath: string;
       threshold: number;
+      cooldownMs?: number;
     }
   | {
       type: 'PROCESS_CHUNK';
