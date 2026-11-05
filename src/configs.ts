@@ -33,10 +33,10 @@ const createSettings = (audioConfig?: Settings['audioConfig']): Settings => ({
   azureCredentials: azureCredentials,
   azureRegion: speechRegion,
   asrDefaultCompleteTimeout: 0,
-  asrDefaultNoInputTimeout: 10000,
+  asrDefaultNoInputTimeout: 8000,
   locale: 'en-US',
   ttsDefaultVoice: 'en-US-DavisNeural',
-  ttsDefaultSpeechRate: 1.15,
+  ttsDefaultSpeechRate: 1.75,
   bargeIn: false,
   audioConfig,
 });

@@ -312,7 +312,6 @@ describe('Dialogue Manager - Procedural Cooking State Machine', () => {
     expect(activeReport.recipe?.currentStepText).toBe(
       'Bring a large pot of salted water to a boil.',
     );
-    expect(activeReport.silentNoInput).toBe(false);
     expect(activeReport.recipeCandidates).toBeNull();
     expect(activeReport.knowledgeQuery).toBeNull();
     expect(activeReport.returnState).toBeNull();

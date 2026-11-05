@@ -20,7 +20,6 @@ export const buildDebugReport = ({ value, context }: DebugReportOptions) => {
     speechStatus: context.speechStatus ?? 'idle',
     noInputCount: context.noInputCount ?? 0,
     debugNoInput: context.debugNoInput ?? 0,
-    silentNoInput: Boolean(context.silentNoInput),
     lastNoInputAt: context.lastNoInputAt ?? null,
     errorMessage: context.errorMessage ?? null,
     recipe: context.recipe

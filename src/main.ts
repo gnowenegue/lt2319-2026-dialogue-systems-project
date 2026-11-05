@@ -2,7 +2,7 @@ import './style.css';
 
 import { createActor } from 'xstate';
 
-import { AudioPipeline, PushToTalkController, WakeWordEngine } from './audio';
+import { AudioPipeline, PushToTalkController, playWakeChime, WakeWordEngine } from './audio';
 import { getPushStreamAdapter } from './configs';
 import { buildDebugReport, cookingMachine } from './dm';
 import type { Message, SpeechStatus } from './dm/types';
@@ -15,6 +15,7 @@ import {
   updateRecipeProgress,
   updateSystemPrompt,
   updateTimersDisplay,
+  updateTriggerIndicator,
   updateVoiceIndicator,
 } from './ui';
 
@@ -45,6 +46,7 @@ const pushStreamAdapter = getPushStreamAdapter();
 
 // enable Spacebar Push-To-Talk hotkey immediately on page load
 pttController.enable();
+updateTriggerIndicator(dom.pttIndicator, 'ready', 'Spacebar PTT');
 
 let audioStarted = false;
 
@@ -74,17 +76,27 @@ const ensureAudioStarted = async (): Promise<void> => {
       pushStreamAdapter.pushChunk(chunk);
     });
 
+    // pre-warm child SpeechState actor (creates AudioContext, fetches Azure token, connects WebSockets)
+    const snapshot = dmActor.getSnapshot();
+    if (snapshot.context.spstRef) {
+      snapshot.context.spstRef.send({ type: 'PREPARE' });
+    }
+
+    updateTriggerIndicator(dom.wakeWordIndicator, 'loading', '"Hey Chef" loading...');
     wakeWordEngine
       .start()
       .then(() => {
         console.log('[CookMate] Wake word engine started (Hey Chef)');
+        updateTriggerIndicator(dom.wakeWordIndicator, 'ready', '"Hey Chef" ready');
       })
       .catch((err) => {
         console.warn('[CookMate] Wake word engine deferred/warning:', err);
+        updateTriggerIndicator(dom.wakeWordIndicator, 'error', '"Hey Chef" unavailable');
       });
   } catch (err) {
     audioStarted = false;
     console.error('[CookMate] Error initializing audio pipeline:', err);
+    updateTriggerIndicator(dom.wakeWordIndicator, 'error', '"Hey Chef" unavailable');
   }
 };
 
@@ -115,6 +127,10 @@ const handleTrigger = async (source: 'wake-word' | 'ptt'): Promise<void> => {
   const snapshot = dmActor.getSnapshot();
   const stateStr = String(snapshot.value);
 
+  if (snapshot.context.speechStatus !== 'speaking') {
+    playWakeChime();
+  }
+
   if (stateStr === 'Idle') {
     dmActor.send({ type: 'CLICK' });
   } else {
@@ -127,12 +143,20 @@ wakeWordEngine.onTrigger((detection) => {
   console.log(
     `[CookMate] Wake word detected: ${detection.modelName} (score: ${(detection.score * 100).toFixed(1)}%)`,
   );
+  updateTriggerIndicator(dom.wakeWordIndicator, 'active', '"Hey Chef" detected');
+  setTimeout(() => {
+    updateTriggerIndicator(dom.wakeWordIndicator, 'ready', '"Hey Chef" ready');
+  }, 1200);
   handleTrigger('wake-word');
 });
 
 // listen for Push-To-Talk spacebar toggle
 pttController.onTrigger(() => {
   console.log('[CookMate] Push-to-Talk (Spacebar) triggered');
+  updateTriggerIndicator(dom.pttIndicator, 'active', 'Spacebar active');
+  setTimeout(() => {
+    updateTriggerIndicator(dom.pttIndicator, 'ready', 'Spacebar PTT');
+  }, 1000);
   handleTrigger('ptt');
 });
 

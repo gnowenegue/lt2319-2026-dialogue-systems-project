@@ -1,6 +1,7 @@
 import { speechstate } from 'speechstate';
 import { assign, setup } from 'xstate';
 
+import { playSleepChime } from '../audio';
 import { settings } from '../configs';
 import { DEFAULT_CONVERSATION_WINDOW, ROLES } from '../constants';
 import prompts from '../prompts';
@@ -27,6 +28,7 @@ import {
   resolveContextualGreeting,
   resolveContextualHelp,
   resolveReturnState,
+  resolveTimerLabel,
 } from './helpers';
 import {
   advanceCookingStepTransition,
@@ -67,6 +69,9 @@ export const cookingMachine = setup({
       );
     }),
     setListening: assign({ speechStatus: 'listening' as const }),
+    playSleepChime: () => {
+      playSleepChime();
+    },
     resetNoInput: assign({
       noInputCount: 0,
       debugNoInput: 0,
@@ -117,10 +122,10 @@ export const cookingMachine = setup({
     timerRef: spawn('timerActor'),
     activeTimers: [],
     speechStatus: 'idle',
+    isSpeechReady: false,
     pendingUtterance: null,
     lastResolvedAct: null,
     lastResolvedEntities: null,
-    silentNoInput: false,
     selectedCandidateId: null,
     knowledgeQuery: null,
     knowledgeCategory: null,
@@ -141,7 +146,6 @@ export const cookingMachine = setup({
             noInputCount: 0,
             debugNoInput: 0,
             pendingUtterance: null,
-            silentNoInput: false,
             speechStatus: 'processing',
             messages: userUtterance
               ? [
@@ -214,12 +218,18 @@ export const cookingMachine = setup({
         ],
       },
       {
-        guard: ({ context }) =>
-          context.speechStatus === 'listening' || Boolean(context.silentNoInput),
-        actions: [
-          assign({ silentNoInput: false, speechStatus: 'listening' }),
-          { type: 'spst.listen' },
-        ],
+        guard: ({ context }) => context.speechStatus === 'listening',
+        actions: [{ type: 'spst.listen' }],
+      },
+    ],
+    ASRTTS_READY: [
+      {
+        // replay pending speech if teardown delayed readiness
+        guard: ({ context }) => !context.isSpeechReady && context.speechStatus === 'speaking',
+        actions: [assign({ isSpeechReady: true }), 'speakLastUtterance'],
+      },
+      {
+        actions: assign({ isSpeechReady: true }),
       },
     ],
     UNKNOWN: {
@@ -232,6 +242,10 @@ export const cookingMachine = setup({
       {
         guard: 'isNoInputLimitReached',
         actions: ['resetNoInput', 'spst.listen'],
+      },
+      {
+        guard: ({ context }) => context.speechStatus === 'idle',
+        actions: ['setListening', 'spst.listen'],
       },
     ],
     WAKE_WORD: resumeListeningTransition,
@@ -265,8 +279,8 @@ export const cookingMachine = setup({
       actions: [
         ({ context, event }) => {
           if (context.timerRef && event.type === 'SET_TIMER') {
-            const id = `timer-${Date.now()}`;
-            const label = event.label?.trim() || 'cooking';
+            const id = `timer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+            const label = resolveTimerLabel(context.activeTimers, event.label);
             context.timerRef.send({
               type: 'START_TIMER',
               id,
@@ -276,7 +290,7 @@ export const cookingMachine = setup({
           }
         },
         assign(({ context, event }) => {
-          const label = event.label?.trim() || 'cooking';
+          const label = resolveTimerLabel(context.activeTimers, event.label);
           const duration = formatDurationForSpeech(event.durationSeconds);
           return {
             ...prepareAssistantSpeech(context, `Started a ${duration} timer for ${label}.`),
@@ -382,10 +396,22 @@ export const cookingMachine = setup({
   states: {
     Idle: {
       on: {
-        START: 'Prepare',
-        CLICK: 'Prepare',
-        WAKE_WORD: 'Prepare',
-        PTT_TRIGGER: 'Prepare',
+        START: [
+          { guard: ({ context }) => !!context.isSpeechReady, target: 'PromptRecipe' },
+          { target: 'Prepare' },
+        ],
+        CLICK: [
+          { guard: ({ context }) => !!context.isSpeechReady, target: 'PromptRecipe' },
+          { target: 'Prepare' },
+        ],
+        WAKE_WORD: [
+          { guard: ({ context }) => !!context.isSpeechReady, target: 'PromptRecipe' },
+          { target: 'Prepare' },
+        ],
+        PTT_TRIGGER: [
+          { guard: ({ context }) => !!context.isSpeechReady, target: 'PromptRecipe' },
+          { target: 'Prepare' },
+        ],
         ASR_NOINPUT: {},
         LISTEN_COMPLETE: {},
       },
@@ -394,7 +420,10 @@ export const cookingMachine = setup({
     Prepare: {
       entry: [assign({ speechStatus: 'processing' }), { type: 'spst.prepare' }],
       on: {
-        ASRTTS_READY: 'PromptRecipe',
+        ASRTTS_READY: {
+          target: 'PromptRecipe',
+          actions: assign({ isSpeechReady: true }),
+        },
       },
     },
 
@@ -620,20 +649,19 @@ export const cookingMachine = setup({
     WaitingForPrepConfirmation: {
       on: {
         ASR_NOINPUT: {
-          actions: assign({
-            silentNoInput: true,
-            debugNoInput: ({ context }) => (context.debugNoInput ?? 0) + 1,
-            lastNoInputAt: () => new Date().toISOString(),
-          }),
+          actions: [
+            assign({
+              speechStatus: 'idle',
+              debugNoInput: ({ context }) => (context.debugNoInput ?? 0) + 1,
+              lastNoInputAt: () => new Date().toISOString(),
+            }),
+            'playSleepChime',
+          ],
         },
         LISTEN_COMPLETE: [
           {
-            guard: ({ context }) =>
-              context.speechStatus === 'listening' || Boolean(context.silentNoInput),
-            actions: [
-              assign({ silentNoInput: false, speechStatus: 'listening' }),
-              { type: 'spst.listen' },
-            ],
+            guard: ({ context }) => context.speechStatus === 'listening',
+            actions: [{ type: 'spst.listen' }],
           },
         ],
         SPEAK_COMPLETE: {
@@ -693,20 +721,19 @@ export const cookingMachine = setup({
     WaitingForStepCommand: {
       on: {
         ASR_NOINPUT: {
-          actions: assign({
-            silentNoInput: true,
-            debugNoInput: ({ context }) => (context.debugNoInput ?? 0) + 1,
-            lastNoInputAt: () => new Date().toISOString(),
-          }),
+          actions: [
+            assign({
+              speechStatus: 'idle',
+              debugNoInput: ({ context }) => (context.debugNoInput ?? 0) + 1,
+              lastNoInputAt: () => new Date().toISOString(),
+            }),
+            'playSleepChime',
+          ],
         },
         LISTEN_COMPLETE: [
           {
-            guard: ({ context }) =>
-              context.speechStatus === 'listening' || Boolean(context.silentNoInput),
-            actions: [
-              assign({ silentNoInput: false, speechStatus: 'listening' }),
-              { type: 'spst.listen' },
-            ],
+            guard: ({ context }) => context.speechStatus === 'listening',
+            actions: [{ type: 'spst.listen' }],
           },
         ],
         SPEAK_COMPLETE: {
@@ -719,7 +746,7 @@ export const cookingMachine = setup({
             actions: [
               ({ context }) => {
                 if (context.timerRef && context.pendingStepTimer) {
-                  const id = `timer-${Date.now()}`;
+                  const id = `timer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
                   context.timerRef.send({
                     type: 'START_TIMER',
                     id,

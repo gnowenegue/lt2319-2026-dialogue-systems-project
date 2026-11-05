@@ -139,6 +139,10 @@ export interface CookingContext {
    */
   speechStatus?: SpeechStatus;
   /**
+   * whether child SpeechState actor has initialized Azure ASR/TTS and is ready
+   */
+  isSpeechReady?: boolean;
+  /**
    * pending utterance buffered until recognizer teardown completes
    */
   pendingUtterance?: string | null;
@@ -150,10 +154,6 @@ export interface CookingContext {
    * entities extracted by semantic parser for the latest dialogue act
    */
   lastResolvedEntities?: Record<string, unknown> | null;
-  /**
-   * flag indicating a silent no-input timeout occurred during hands-busy cooking or prep
-   */
-  silentNoInput?: boolean;
   /**
    * recipe ID of the user-selected candidate to be refined and loaded
    */
