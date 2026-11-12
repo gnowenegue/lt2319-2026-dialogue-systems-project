@@ -36,7 +36,7 @@ const createSettings = (audioConfig?: Settings['audioConfig']): Settings => ({
   asrDefaultNoInputTimeout: 8000,
   locale: 'en-US',
   ttsDefaultVoice: 'en-US-DavisNeural',
-  ttsDefaultSpeechRate: 1.75,
+  ttsDefaultSpeechRate: 1.25,
   bargeIn: false,
   audioConfig,
 });
