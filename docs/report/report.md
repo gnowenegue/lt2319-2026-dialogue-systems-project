@@ -184,7 +184,7 @@ We also extracted the following key entities:
 
 ### 4.1 Architecture Overview
 
-![Architecture Diagram](../architecture-v2.excalidraw.svg)
+![Architecture Diagram](../architecture-v2.excalidraw.png){width=75%}
 
 As the system is complicated, we modularize the system into 4 main components:
 
