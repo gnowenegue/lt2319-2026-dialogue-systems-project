@@ -1,0 +1,12 @@
+flowchart TD
+    User([User]) -->|Voice / PTT| Audio[Audio Pipeline]
+    Audio --> ASR[ASR]
+    ASR --> LLM_Interp["LLM<br/>(Interpreter)"]
+    LLM_Interp -->|Structured semantics| DialogueManager["Dialogue Manager"]
+
+    DialogueManager <--> Recipe["API<br/>(Recipe)"]
+    DialogueManager <--> RAG["RAG<br/>(Culinary Knowledge)"]
+    DialogueManager <--> Timers[Kitchen Timers]
+
+    DialogueManager -->|Speech| TTS[TTS]
+    TTS -->|Speech| User

@@ -48,7 +48,8 @@ All tests were executed against live APIs (Groq Cloud LPU, local Qdrant Vector D
 * **Test Query**: `"What can you help me with in the kitchen?"`
 * **Latency**: 568ms
 
-#### LLM Output:
+#### LLM Output
+>
 > *"I can offer recipe ideas, ingredient substitutions, cooking techniques, plating suggestions, and general kitchen organization tips."*
 
 * **Word Count**: 16 words (Target: $\le 25$ words) $\rightarrow$ **PASS**
@@ -67,6 +68,7 @@ All tests were executed against live APIs (Groq Cloud LPU, local Qdrant Vector D
 * **Target**: Answer strictly from retrieved context in 1–2 plain spoken sentences ($\le 25$ words), refusing to guess if context is missing.
 
 #### Test 3.1: Grounded Ingredient Substitution
+
 * **Question**: *"What can I use instead of buttermilk?"*
 * **Retrieved Chunks**: `data/knowledge/substitutions/dairy-and-eggs.md` (similarity score: `0.8164`)
 * **Latency**: 675ms
@@ -75,6 +77,7 @@ All tests were executed against live APIs (Groq Cloud LPU, local Qdrant Vector D
 * **Word Count**: 25 words (Target: $\le 25$ words) $\rightarrow$ **PASS**
 
 #### Test 3.2: Grounded Technique Explanation
+
 * **Question**: *"How do I know when pasta is al dente?"*
 * **Retrieved Chunks**: `data/knowledge/techniques/al-dente.md` (similarity score: `0.8251`)
 * **Latency**: 676ms
@@ -83,6 +86,7 @@ All tests were executed against live APIs (Groq Cloud LPU, local Qdrant Vector D
 * **Word Count**: 23 words (Target: $\le 25$ words) $\rightarrow$ **PASS**
 
 #### Test 3.3: Negative / Food Safety Hallucination Guardrail
+
 * **Question**: *"What temperature should I bake radioactive fuel rods at?"*
 * **Retrieved Chunks**: Low similarity chunks on thermal cooking (`0.6749`, unrelated)
 * **Latency**: 478ms
@@ -101,14 +105,16 @@ All tests were executed against live APIs (Groq Cloud LPU, local Qdrant Vector D
 * **Latency**: 6,402ms (~6.4 seconds)
 * **Execution Mode**: One-time background ingestion upon recipe confirmation.
 
-#### Transformation Metrics:
+#### Transformation Metrics
+
 * **Ingredients Count**: 8 (raw API) $\rightarrow$ **11 (refined)**
   * Added unlisted staples identified in steps: *water*, *kosher salt*.
 * **Steps Count**: 10 (raw API) $\rightarrow$ **20 (refined atomic steps)**
   * Run-on instructional sentences split into focused, single-action steps (averaging 7–9 words per step).
 * **Total Estimated Cooking Time**: **16 minutes** (automatically aggregated from step durations).
 
-#### Sample Refined Output:
+#### Sample Refined Output
+
 ```json
 {
   "ingredients": [
