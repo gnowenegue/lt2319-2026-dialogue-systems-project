@@ -1,6 +1,6 @@
 # CookMate
 
-> A stateful spoken dialogue copilot combining deterministic state management, structured recipe APIs, and retrieval-augmented language models to assist users hands-free during procedural cooking tasks.
+A stateful spoken dialogue copilot combining deterministic state management, structured recipe APIs, and retrieval-augmented language models to assist users hands-free during procedural cooking tasks.
 
 Built for the **LT2319 Dialogue Systems** course project at the University of Gothenburg.
 
