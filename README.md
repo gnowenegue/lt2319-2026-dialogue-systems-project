@@ -46,7 +46,7 @@ CookMate decomposes the cooking assistant into four modular subsystems to balanc
   - [Groq LPU](https://groq.com/) running `openai/gpt-oss-20b` for sub-second dialogue act classification and entity extraction.
   - Multi-turn conversational context injection resolving situational references (*"the second one"*, *"ready"*, *"how much butter?"*).
 - **Dialogue Management & Runtime Orchestration**:
-  - [SpeechState](https://github.com/speechstate/speechstate) + [XState v5](https://stately.ai/docs/xstate) for hierarchical dialogue policy (recipe search, paced 2-by-2 ingredient gathering, step navigation, and proactive timer prompts).
+  - [SpeechState](https://github.com/speechstate/speechstate) ([changes](https://github.com/vladmaraev/speechstate/compare/master...gnowenegue:speechstate:feat/asr-audio-streaming-robustness)) + [XState v5](https://stately.ai/docs/xstate) for hierarchical dialogue policy (recipe search, paced 2-by-2 ingredient gathering, step navigation, and proactive timer prompts).
   - Dedicated **Web Worker** with 250ms timestamp-anchored heartbeats for drift-free concurrent kitchen timers immune to browser tab throttling.
 - **Culinary Knowledge & Grounded RAG**:
   - [TheMealDB API](https://www.themealdb.com/) with two-stage recipe normalization (`Intl.Segmenter` + LLM refinement via Groq with `openai/gpt-oss-120b`).

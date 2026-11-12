@@ -188,7 +188,7 @@ We also extracted the following key entities:
 
 As the system is complicated, we modularize the system into 4 main components:
 
-1. **Voice Interface:** `openWakeWord`, `SpeechState`\
+1. **Voice Interface:** `openWakeWord`, `SpeechState` ([changes](https://github.com/vladmaraev/speechstate/compare/master...gnowenegue:speechstate:feat/asr-audio-streaming-robustness))\
 Handles hands-free wake word detection, speech-to-text, and text-to-speech.
 1. **NLU:** `Groq`, `openai/gpt-oss-20b`\
 Converts user utterances into structured dialogue acts and entities.
